@@ -1,0 +1,106 @@
+/* Layout: sidebar on the left, calendar on the right (Figure 1). */
+.app {
+  display: flex;
+  gap: 16px;
+  height: 100vh;
+  padding: 16px;
+  box-sizing: border-box;
+  background: #f2f2f2;
+}
+
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.panel {
+  background: #fff;
+  border: 1.5px solid #222;
+  border-radius: 20px;
+  padding: 12px 16px;
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.placeholder {
+  margin: 0;
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.calendar-area {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px;
+}
+
+/* ---------- Event blocks ---------- */
+
+.fc .fc-timegrid-event,
+.fc .fc-daygrid-event {
+  border-radius: 10px;
+  border: none;
+}
+
+.event-block {
+  padding: 2px 4px;
+  color: #222;
+  font-size: 0.8rem;
+  overflow: hidden;
+  height: 100%;
+}
+
+.event-title {
+  font-weight: 600;
+}
+
+.event-sub {
+  font-size: 0.7rem;
+  color: #555;
+}
+
+.tag {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.65rem;
+}
+
+.priority-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  border: 1.5px solid #222;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 13px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Category colours, taken from the wireframe. Colour is never the
+   only signal: the category, Fixed/Movable and priority are also text. */
+.cat-class       { background: #f2b3d6 !important; }
+.cat-meeting     { background: #bde3f9 !important; }
+.cat-appointment { background: #c8ecc9 !important; }
+.cat-assignment  { background: #c3c6f7 !important; }
+.cat-personal    { background: #fbe5b4 !important; }
+
+/* Both events of a conflict are outlined (Section 5.5). */
+.is-conflict {
+  outline: 3px solid #e85b5b;
+  outline-offset: -1px;
+}
