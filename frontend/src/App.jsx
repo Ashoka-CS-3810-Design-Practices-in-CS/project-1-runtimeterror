@@ -1,23 +1,14 @@
-// The home screen (Assignment 3, Section 5.2, Figure 1):
-// a sidebar on the left, the calendar on the right.
-//
-// UI Step 1 only: show events on the calendar using fake data, and
-// prototype the FullCalendar features from Risk R3:
-//   - Fixed events cannot be dragged or resized; Movable ones can
-//   - events in a conflict are outlined
-//   - priority is shown with an icon, not by colour alone (Section 5.8)
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
-import { mockConflicts, mockEvents } from "./mockData";
+import * as api from "./api/mockAPI";
+import EventForm from "./components/EventForm";
+import Notification from "./components/Notification";
 import "./App.css";
 
-// FullCalendar gives us JavaScript Date objects. The API contract wants
-// "2026-10-13T10:00" (local time, no time zone), so we convert here.
 function toContractTime(date) {
   const pad = (n) => String(n).padStart(2, "0");
   return (
@@ -26,25 +17,23 @@ function toContractTime(date) {
   );
 }
 
-// Turn one contract Event into the shape FullCalendar expects.
-function toCalendarEvent(event, conflictingIds) {
+function toCalendarEvent(event, conflictingIds, pendingIds) {
   return {
     id: String(event.id),
     title: event.title,
     start: event.start,
     end: event.end,
-    // Risk R3: only Movable events can be dragged or resized.
     startEditable: event.movable,
     durationEditable: event.movable,
     classNames: [
       `cat-${event.category}`,
       conflictingIds.has(event.id) ? "is-conflict" : "",
+      pendingIds.has(event.id) ? "is-pending" : "",
     ],
-    extendedProps: event, // keep the full record for the custom display
+    extendedProps: event, 
   };
 }
 
-// What is drawn inside each event block.
 function EventBlock({ event }) {
   const data = event.extendedProps;
   return (
@@ -58,18 +47,48 @@ function EventBlock({ event }) {
         {data.title}
       </div>
       {data.location && <div className="event-sub">{data.location}</div>}
-      {/* Not by colour alone: Fixed/Movable is written as text. */}
       <span className="tag">{data.movable ? "Movable" : "Fixed"}</span>
     </div>
   );
 }
 
-export default function App() {
-  const [events, setEvents] = useState(mockEvents);
-  const [conflicts] = useState(mockConflicts);
+function withoutId(event) {
+  const body = { ...event };
+  delete body.id;
+  return body;
+}
 
-  // API contract, "How the frontend keeps highlights correct":
-  // the set of conflicting event ids is rebuilt from the conflict list.
+function toErrorObject(err) {
+  if (err && err.error) return err.error;
+  console.error(err);
+  return {
+    field: null,
+    message: "Something went wrong",
+    detail: "The action could not be completed. Nothing was changed. Please try again.",
+  };
+}
+
+export default function App() {
+  const [events, setEvents] = useState([]);
+  const [conflicts, setConflicts] = useState([]);
+  const [form, setForm] = useState(null);         
+  const [error, setError] = useState(null);      
+  const [busy, setBusy] = useState(false);       
+  const [pendingIds, setPendingIds] = useState(new Set()); 
+
+  useEffect(() => {
+    api.getEvents().then((data) => {
+      setEvents(data.events);
+      setConflicts(data.conflicts);
+    });
+  }, []);
+
+  async function reloadCalendar() {
+    const data = await api.getEvents();
+    setEvents(data.events);
+    setConflicts(data.conflicts);
+  }
+
   const conflictingIds = useMemo(() => {
     const ids = new Set();
     for (const c of conflicts) {
@@ -79,24 +98,137 @@ export default function App() {
     return ids;
   }, [conflicts]);
 
-  const calendarEvents = events.map((e) => toCalendarEvent(e, conflictingIds));
+  const calendarEvents = events.map((e) => toCalendarEvent(e, conflictingIds, pendingIds));
 
-  // Called once, when the user DROPS a dragged event or finishes a resize
-  // (never during the drag, Assignment 3 Section 4.4).
-  // For now we only update our local list. Later this is where we send
-  // PUT /api/events/{id} to the backend.
-  function handleMoveOrResize(info) {
-    const id = Number(info.event.id);
-    const newStart = toContractTime(info.event.start);
-    const newEnd = toContractTime(info.event.end);
-    console.log("Would send PUT /api/events/" + id, { start: newStart, end: newEnd });
-    setEvents((old) =>
-      old.map((e) => (e.id === id ? { ...e, start: newStart, end: newEnd } : e))
-    );
+  function applySavedEvent(saved, newConflicts) {
+    setEvents((old) => {
+      const others = old.filter((e) => e.id !== saved.id);
+      return [...others, saved];
+    });
+    setConflicts((old) => [
+      ...old.filter((c) => c.eventA !== saved.id && c.eventB !== saved.id),
+      ...newConflicts,
+    ]);
+  }
+
+  function showError(err) {
+    const e = toErrorObject(err);
+    setError(e);
+    return e;
+  }
+
+  function handleSelect(info) {
+    let start = toContractTime(info.start);
+    let end = toContractTime(info.end);
+    if (info.allDay) {
+      start = info.startStr + "T09:00";
+      end = info.startStr + "T10:00";
+    }
+    info.view.calendar.unselect();
+    setError(null);
+    setForm({
+      openedAt: Date.now(),
+      isEdit: false,
+      position: { x: info.jsEvent?.clientX ?? 400, y: info.jsEvent?.clientY ?? 200 },
+      errorField: null,
+      initial: {
+        title: "",
+        start,
+        end,
+        location: "",
+        description: "",
+        category: "meeting",
+        priority: null,
+        movable: false, 
+      },
+    });
+  }
+
+  function handleEventClick(info) {
+    const event = info.event.extendedProps;
+    setError(null);
+    setForm({
+      openedAt: Date.now(),
+      isEdit: true,
+      eventId: event.id,
+      position: { x: info.jsEvent.clientX, y: info.jsEvent.clientY },
+      errorField: null,
+      initial: { ...event },
+    });
+  }
+
+  async function handleSave(values) {
+    setBusy(true);
+    try {
+      const body = withoutId(values);
+      const result = form.isEdit
+        ? await api.updateEvent(form.eventId, body)
+        : await api.createEvent(body);
+      applySavedEvent(result.event, result.conflicts);
+      setForm(null);   
+      setError(null);
+    } catch (err) {
+      const e = showError(err);
+      setForm((old) => old && { ...old, errorField: e.field });
+      if (err?.status === 404) {         
+        setForm(null);
+        await reloadCalendar();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true);
+    try {
+      const { deletedId } = await api.deleteEvent(form.eventId);
+      setEvents((old) => old.filter((e) => e.id !== deletedId));
+      setConflicts((old) =>
+        old.filter((c) => c.eventA !== deletedId && c.eventB !== deletedId)
+      );
+      setForm(null);
+    } catch (err) {
+      showError(err);
+      if (err?.status === 404) {
+        setForm(null);
+        await reloadCalendar();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMoveOrResize(info) {
+    const event = info.event.extendedProps;
+    const id = event.id;
+    const body = withoutId({
+      ...event,
+      start: toContractTime(info.event.start),
+      end: toContractTime(info.event.end),
+    });
+
+    setPendingIds((old) => new Set(old).add(id));
+    try {
+      const result = await api.updateEvent(id, body);
+      applySavedEvent(result.event, result.conflicts);
+    } catch (err) {
+      info.revert();   
+      showError(err);
+      if (err?.status === 404) await reloadCalendar();
+    } finally {
+      setPendingIds((old) => {
+        const next = new Set(old);
+        next.delete(id);
+        return next;
+      });
+    }
   }
 
   return (
     <div className="app">
+      {error && <Notification key={error.message} error={error} onClose={() => setError(null)} />}
+
       <aside className="sidebar">
         <section className="panel">
           <h2>Mini calendar</h2>
@@ -120,22 +252,38 @@ export default function App() {
             right: "prev,today,next",
           }}
           buttonText={{ month: "Month", week: "Week", day: "Day", today: "Today" }}
-          firstDay={1}              // weeks start on Monday, like the wireframe
+          firstDay={1}             
           slotDuration="00:30:00"
-          // One time format everywhere, 24-hour like the wireframe (Section 5.8)
           slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
           eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-          scrollTime="08:00:00"     // the grid still scrolls to all 24 hours
+          scrollTime="08:00:00"     
           height="100%"
           allDaySlot={false}
           nowIndicator={true}
-          editable={true}           // per-event settings above can switch it off
+          editable={true}           
+          selectable={true}        
           events={calendarEvents}
           eventContent={(arg) => <EventBlock event={arg.event} />}
+          select={handleSelect}
+          eventClick={handleEventClick}
           eventDrop={handleMoveOrResize}
           eventResize={handleMoveOrResize}
         />
       </main>
+
+      {form && (
+        <EventForm
+          key={form.openedAt}
+          initial={form.initial}
+          isEdit={form.isEdit}
+          position={form.position}
+          errorField={form.errorField}
+          busy={busy}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onClose={() => setForm(null)}
+        />
+      )}
     </div>
   );
 }

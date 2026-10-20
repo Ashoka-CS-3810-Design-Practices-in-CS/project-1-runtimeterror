@@ -1,4 +1,3 @@
-/* Layout: sidebar on the left, calendar on the right (Figure 1). */
 .app {
   display: flex;
   gap: 16px;
@@ -43,8 +42,6 @@
   border-radius: 20px;
   padding: 16px;
 }
-
-/* ---------- Event blocks ---------- */
 
 .fc .fc-timegrid-event,
 .fc .fc-daygrid-event {
@@ -91,16 +88,117 @@
   font-weight: 700;
 }
 
-/* Category colours, taken from the wireframe. Colour is never the
-   only signal: the category, Fixed/Movable and priority are also text. */
 .cat-class       { background: #f2b3d6 !important; }
 .cat-meeting     { background: #bde3f9 !important; }
 .cat-appointment { background: #c8ecc9 !important; }
 .cat-assignment  { background: #c3c6f7 !important; }
 .cat-personal    { background: #fbe5b4 !important; }
 
-/* Both events of a conflict are outlined (Section 5.5). */
 .is-conflict {
   outline: 3px solid #e85b5b;
   outline-offset: -1px;
 }
+
+.is-pending {
+  opacity: 0.55;
+  outline: 2px dashed #555;
+  outline-offset: -2px;
+}
+
+button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #222;
+  background: #fff;
+  color: #222;
+  cursor: pointer;
+}
+button.primary { background: #111; color: #fff; }
+button.danger  { background: #e85b5b; border-color: #e85b5b; color: #fff; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.icon-button { border: none; padding: 2px 6px; font-size: 1rem; }
+
+.popup {
+  position: fixed;
+  z-index: 20;
+  width: 340px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1.5px solid #222;
+  border-radius: 20px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.popup-header h2 { margin: 0; font-size: 1.15rem; font-weight: 500; }
+
+.popup label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: #555;
+  flex: 1;
+}
+
+.popup input,
+.popup select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border: 1.2px solid #999;
+  border-radius: 999px;
+  background: #fff;
+  color: #222;
+  min-width: 0;
+}
+
+.popup .row { display: flex; gap: 8px; }
+
+.popup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.confirm-text { font-size: 0.8rem; }
+
+.popup .has-error {
+  border: 2px solid #e85b5b;
+  background: #fff3f3;
+}
+
+.notification {
+  position: fixed;
+  z-index: 30;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 90vw);
+  box-sizing: border-box;
+  background: #fff;
+  border: 2px solid #e85b5b;
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+.notification p { margin: 6px 0 0; font-size: 0.85rem; }
+.notification-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.popup .row.times { flex-direction: column; }
