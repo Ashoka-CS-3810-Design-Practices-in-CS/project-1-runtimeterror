@@ -3,15 +3,16 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-
+ 
 import * as api from "./api";
 import EventForm from "./components/EventForm";
 import Notification from "./components/Notification";
 import ConflictPanel from "./components/ConflictPanel";
 import TaskPanel from "./components/TaskPanel";
 import MiniCalendar from "./components/MiniCalendar";
+import PreferencesForm from "./components/PreferencesForm";
 import "./App.css";
-
+ 
 function toContractTime(date) {
   const pad = (n) => String(n).padStart(2, "0");
   return (
@@ -36,7 +37,7 @@ function toCalendarEvent(event, conflictingIds, pendingIds) {
     extendedProps: event,
   };
 }
-
+ 
 function EventBlock({ event }) {
   const data = event.extendedProps;
   return (
@@ -60,7 +61,12 @@ function withoutId(event) {
   delete body.id;
   return body;
 }
-
+ 
+const PREFS_SEEN_KEY = "calendar.preferencesSeen";
+ 
+function rememberPrefsSeen() {
+  try { localStorage.setItem(PREFS_SEEN_KEY, "yes"); } catch { /* ignore */ }
+}
 function toErrorObject(err) {
   if (err && err.error) return err.error;
   console.error(err);
@@ -70,33 +76,43 @@ function toErrorObject(err) {
     detail: "The action could not be completed. Nothing was changed. Please try again.",
   };
 }
-
+ 
 export default function App() {
   const [events, setEvents] = useState([]);
   const [conflicts, setConflicts] = useState([]);
-  const [form, setForm] = useState(null);        
+  const [form, setForm] = useState(null);         
   const [error, setError] = useState(null);       
   const [busy, setBusy] = useState(false);        
   const [pendingIds, setPendingIds] = useState(new Set()); 
-  const [keptKeys, setKeptKeys] = useState(new Set());     
-  const [conflictIndex, setConflictIndex] = useState(0);   
+  const [keptKeys, setKeptKeys] = useState(new Set());      
+  const [conflictIndex, setConflictIndex] = useState(0);    
   const calendarRef = useRef(null);   
-
+  const [prefsForm, setPrefsForm] = useState(null); 
+  const [toast, setToast] = useState(null);         
+ 
   useEffect(() => {
     api.getEvents()
       .then((data) => {
         setEvents(data.events);
         setConflicts(data.conflicts);
       })
-      .catch((err) => setError(toErrorObject(err)));
+      .catch((err) => setError(toErrorObject(err)));  
+ 
+    let seen = false;
+    try { seen = localStorage.getItem(PREFS_SEEN_KEY) === "yes"; } catch { /* ignore */ }
+    if (!seen) {
+      api.getPreferences()
+        .then((data) => setPrefsForm({ initial: data.preferences, firstLaunch: true }))
+        .catch(() => {});
+    }
   }, []);
-
+ 
   async function reloadCalendar() {
     const data = await api.getEvents();
     setEvents(data.events);
     setConflicts(data.conflicts);
   }
-
+ 
   const conflictingIds = useMemo(() => {
     const ids = new Set();
     for (const c of conflicts) {
@@ -105,19 +121,19 @@ export default function App() {
     }
     return ids;
   }, [conflicts]);
-
+ 
   const conflictKey = (c) => `${c.eventA}-${c.eventB}`;
   const panelConflicts = conflicts.filter((c) => !keptKeys.has(conflictKey(c)));
   const shownIndex = Math.min(conflictIndex, Math.max(panelConflicts.length - 1, 0));
-
+ 
   const eventsById = useMemo(() => {
     const map = {};
     for (const e of events) map[e.id] = e;
     return map;
   }, [events]);
-
+ 
   const calendarEvents = events.map((e) => toCalendarEvent(e, conflictingIds, pendingIds));
-
+ 
   function applySavedEvent(saved, newConflicts) {
     setEvents((old) => {
       const others = old.filter((e) => e.id !== saved.id);
@@ -128,13 +144,13 @@ export default function App() {
       ...newConflicts,
     ]);
   }
-
+ 
   function showError(err) {
     const e = toErrorObject(err);
     setError(e);
     return e;
   }
-
+ 
   function handleSelect(info) {
     let start = toContractTime(info.start);
     let end = toContractTime(info.end);
@@ -161,7 +177,7 @@ export default function App() {
       },
     });
   }
-
+ 
   function handleEventClick(info) {
     const event = info.event.extendedProps;
     const i = panelConflicts.findIndex((c) => c.eventA === event.id || c.eventB === event.id);
@@ -176,7 +192,7 @@ export default function App() {
       initial: { ...event },
     });
   }
-
+ 
   async function handleSave(values) {
     setBusy(true);
     try {
@@ -190,7 +206,7 @@ export default function App() {
     } catch (err) {
       const e = showError(err);
       setForm((old) => old && { ...old, errorField: e.field });
-      if (err?.status === 404) {          
+      if (err?.status === 404) {         
         setForm(null);
         await reloadCalendar();
       }
@@ -198,7 +214,7 @@ export default function App() {
       setBusy(false);
     }
   }
-
+ 
   async function handleDelete() {
     setBusy(true);
     try {
@@ -218,7 +234,7 @@ export default function App() {
       setBusy(false);
     }
   }
-
+ 
   async function handleMoveOrResize(info) {
     const event = info.event.extendedProps;
     const id = event.id;
@@ -227,13 +243,13 @@ export default function App() {
       start: toContractTime(info.event.start),
       end: toContractTime(info.event.end),
     });
-
+ 
     setPendingIds((old) => new Set(old).add(id));
     try {
       const result = await api.updateEvent(id, body);
       applySavedEvent(result.event, result.conflicts);
     } catch (err) {
-      info.revert();  
+      info.revert();   
       showError(err);
       if (err?.status === 404) await reloadCalendar();
     } finally {
@@ -244,7 +260,7 @@ export default function App() {
       });
     }
   }
-
+ 
   async function handleMoveFromPanel(id, start, end) {
     const event = eventsById[id];
     setPendingIds((old) => new Set(old).add(id));
@@ -262,16 +278,51 @@ export default function App() {
       });
     }
   }
-
+ 
+  async function openPreferences() {
+    try {
+      const data = await api.getPreferences();
+      setPrefsForm({ initial: data.preferences, firstLaunch: false });
+    } catch (err) {
+      showError(err);
+    }
+  }
+ 
+  async function handleSavePreferences(prefs) {
+    setBusy(true);
+    try {
+      await api.savePreferences(prefs);
+      rememberPrefsSeen();
+      setPrefsForm(null);
+      setError(null);
+      showToast("Preferences saved");  
+    } catch (err) {
+      const e = showError(err);
+      setPrefsForm((old) => old && { ...old, errorField: e.field, initial: prefs });
+    } finally {
+      setBusy(false);
+    }
+  }
+ 
+  function closePreferences() {
+    rememberPrefsSeen();     
+    setPrefsForm(null);
+  }
+ 
+  function showToast(text) {
+    setToast(text);
+    setTimeout(() => setToast(null), 2500);
+  }
+ 
   function handleKeepConflict() {
     const c = panelConflicts[shownIndex];
     if (c) setKeptKeys((old) => new Set(old).add(conflictKey(c)));
   }
-
+ 
   return (
     <div className="app">
       {error && <Notification key={error.message} error={error} onClose={() => setError(null)} />}
-
+ 
       <aside className="sidebar">
         <section className="panel">
           <MiniCalendar onPick={(day) => calendarRef.current?.getApi().gotoDate(day)} />
@@ -292,7 +343,7 @@ export default function App() {
           />
         </section>
       </aside>
-
+ 
       <main className="calendar-area">
         <FullCalendar
           ref={calendarRef}
@@ -301,19 +352,22 @@ export default function App() {
           headerToolbar={{
             left: "title",
             center: "dayGridMonth,timeGridWeek,timeGridDay",
-            right: "prev,today,next",
+            right: "prev,today,next settings",
+          }}
+          customButtons={{
+            settings: { text: "⚙", hint: "Preferences", click: openPreferences },
           }}
           buttonText={{ month: "Month", week: "Week", day: "Day", today: "Today" }}
           firstDay={1}              
           slotDuration="00:30:00"
           slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
           eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-          scrollTime="08:00:00"   
+          scrollTime="08:00:00"     
           height="100%"
           allDaySlot={false}
           nowIndicator={true}
           editable={true}           
-          selectable={true}        
+          selectable={true}         
           events={calendarEvents}
           eventContent={(arg) => <EventBlock event={arg.event} />}
           select={handleSelect}
@@ -322,7 +376,21 @@ export default function App() {
           eventResize={handleMoveOrResize}
         />
       </main>
-
+ 
+      {toast && <div className="toast" role="status">{toast}</div>}
+ 
+      {prefsForm && (
+        <PreferencesForm
+          key={prefsForm.firstLaunch ? "first" : "settings"}
+          initial={prefsForm.initial}
+          firstLaunch={prefsForm.firstLaunch}
+          errorField={prefsForm.errorField}
+          busy={busy}
+          onSave={handleSavePreferences}
+          onClose={closePreferences}
+        />
+      )}
+ 
       {form && (
         <EventForm
           key={form.openedAt}

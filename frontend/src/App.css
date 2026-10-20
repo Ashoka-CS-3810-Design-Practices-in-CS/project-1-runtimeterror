@@ -173,6 +173,7 @@ button.icon-button { border: none; padding: 2px 6px; font-size: 1rem; }
   margin-top: 4px;
 }
 .confirm-text { font-size: 0.8rem; }
+
 .popup .has-error {
   border: 2px solid #e85b5b;
   background: #fff3f3;
@@ -312,3 +313,43 @@ button.icon-button { border: none; padding: 2px 6px; font-size: 1rem; }
 .mini-day:hover { background: #eee; }
 .mini-day.other-month { color: #bbb; }
 .mini-day.today { background: #f2b3d6; font-weight: 600; }
+
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.prefs-popup {
+  position: static;        
+  width: 420px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.prefs-section { font-weight: 600; font-size: 0.85rem; margin-top: 6px; }
+.popup .prefs-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.prefs-row span { font-size: 0.85rem; color: #222; }
+.prefs-row select, .prefs-row input { flex: 0 1 230px; }
+
+.toast {
+  position: fixed;
+  z-index: 30;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
