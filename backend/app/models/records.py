@@ -52,7 +52,24 @@ class Task:
     daily_start: int | None = None   
     daily_end: int | None = None
 
+#adding for explaoner
+PRIORITY_RULES = ("earliest_start", "best_fit")
 
+
+@dataclass(frozen=True)
+class Slot:
+    start: int
+    end: int
+    gap_start: int
+    gap_end: int
+    gap_length: int
+    leftover: int
+    before_cutoff: bool
+    matches_preferred: bool
+    priority_rule: str                  # "earliest_start" or "best_fit"
+    reasons: tuple[str, ...] = ()       # filled in by the Explainer
+
+    
 @dataclass
 class Preferences:
     preferred_time: dict = field(default_factory=lambda: {
