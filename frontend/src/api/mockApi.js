@@ -1,5 +1,3 @@
-// a fake backend that runs inside the browser.
-
 import { mockEvents } from "../mockData";
 
 let events = mockEvents.map((e) => ({ ...e })); 
@@ -12,7 +10,6 @@ const MOVABLE_BY_DEFAULT = {
   assignment: true,
   personal: true,
 };
-
 const wait = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function apiError(status, code, field, message, detail) {
@@ -53,7 +50,7 @@ function conflictsFor(id) {
     if (other.id === id) continue;
     const overlapStart = me.start > other.start ? me.start : other.start;
     const overlapEnd = me.end < other.end ? me.end : other.end;
-    if (overlapStart < overlapEnd) {          
+    if (overlapStart < overlapEnd) {         
       const [a, b] = me.start <= other.start ? [me, other] : [other, me];
       result.push({
         eventA: a.id,
@@ -125,4 +122,67 @@ export async function deleteEvent(id) {
   }
   events.splice(index, 1);
   return { deletedId: id };
+}
+
+export async function getAlternatives(id) {
+  await wait();
+  const event = events.find((e) => e.id === id);
+  if (!event) {
+    throw apiError(404, "ER7", null, "This event no longer exists",
+      "It may have been deleted. The calendar will refresh.");
+  }
+  if (!event.movable) {
+    throw apiError(422, "FIXED", null, "Fixed, cannot be moved by the planner",
+      "This event is marked Fixed, so the planner never suggests moving it.");
+  }
+
+  const day = event.start.slice(0, 10);              
+  const duration = toMinutes(event.end) - toMinutes(event.start);
+  const dayStart = toMinutes(day + "T09:00");
+  const dayEnd = toMinutes(day + "T18:00");
+
+  const busy = events
+    .filter((e) => e.id !== id)
+    .map((e) => [toMinutes(e.start), toMinutes(e.end)])
+    .filter(([s, e]) => s < dayEnd && e > dayStart)
+    .sort((a, b) => a[0] - b[0]);
+
+  const slots = [];
+  let freeFrom = dayStart;
+  for (const [s, e] of [...busy, [dayEnd, dayEnd]]) {
+    const gapEnd = Math.min(s, dayEnd);
+    if (gapEnd - freeFrom >= duration && slots.length < 3) {
+      slots.push({
+        start: fromMinutes(freeFrom),
+        end: fromMinutes(freeFrom + duration),
+        reasons: [
+          `Free for ${describeLength(gapEnd - freeFrom)}, which fits this ${duration}-minute event.`,
+          "Keeps it on the same day, inside your working hours.",
+        ],
+      });
+    }
+    freeFrom = Math.max(freeFrom, e);
+  }
+
+  return {
+    slots,
+    noSlotReason: slots.length ? null
+      : "No free slot of this length on the same day, inside working hours.",
+  };
+}
+
+function fromMinutes(minutes) {
+  const d = new Date(minutes * 60000);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function describeLength(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const parts = [];
+  if (h) parts.push(`${h} hour${h === 1 ? "" : "s"}`);
+  if (m) parts.push(`${m} minute${m === 1 ? "" : "s"}`);
+  return parts.join(" ") || "0 minutes";
 }

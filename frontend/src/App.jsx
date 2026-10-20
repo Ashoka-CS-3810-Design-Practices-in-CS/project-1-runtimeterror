@@ -4,9 +4,10 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
-import * as api from "./api/mockAPI";
+import * as api from "./api/mockApi";
 import EventForm from "./components/EventForm";
 import Notification from "./components/Notification";
+import ConflictPanel from "./components/ConflictPanel";
 import "./App.css";
 
 function toContractTime(date) {
@@ -30,7 +31,7 @@ function toCalendarEvent(event, conflictingIds, pendingIds) {
       conflictingIds.has(event.id) ? "is-conflict" : "",
       pendingIds.has(event.id) ? "is-pending" : "",
     ],
-    extendedProps: event, 
+    extendedProps: event,
   };
 }
 
@@ -72,9 +73,11 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [conflicts, setConflicts] = useState([]);
   const [form, setForm] = useState(null);         
-  const [error, setError] = useState(null);      
+  const [error, setError] = useState(null);       
   const [busy, setBusy] = useState(false);       
   const [pendingIds, setPendingIds] = useState(new Set()); 
+  const [keptKeys, setKeptKeys] = useState(new Set());      
+  const [conflictIndex, setConflictIndex] = useState(0);    
 
   useEffect(() => {
     api.getEvents().then((data) => {
@@ -97,6 +100,16 @@ export default function App() {
     }
     return ids;
   }, [conflicts]);
+
+  const conflictKey = (c) => `${c.eventA}-${c.eventB}`;
+  const panelConflicts = conflicts.filter((c) => !keptKeys.has(conflictKey(c)));
+  const shownIndex = Math.min(conflictIndex, Math.max(panelConflicts.length - 1, 0));
+
+  const eventsById = useMemo(() => {
+    const map = {};
+    for (const e of events) map[e.id] = e;
+    return map;
+  }, [events]);
 
   const calendarEvents = events.map((e) => toCalendarEvent(e, conflictingIds, pendingIds));
 
@@ -146,6 +159,8 @@ export default function App() {
 
   function handleEventClick(info) {
     const event = info.event.extendedProps;
+    const i = panelConflicts.findIndex((c) => c.eventA === event.id || c.eventB === event.id);
+    if (i !== -1) setConflictIndex(i);
     setError(null);
     setForm({
       openedAt: Date.now(),
@@ -213,7 +228,7 @@ export default function App() {
       const result = await api.updateEvent(id, body);
       applySavedEvent(result.event, result.conflicts);
     } catch (err) {
-      info.revert();   
+      info.revert();  
       showError(err);
       if (err?.status === 404) await reloadCalendar();
     } finally {
@@ -223,6 +238,29 @@ export default function App() {
         return next;
       });
     }
+  }
+
+  async function handleMoveFromPanel(id, start, end) {
+    const event = eventsById[id];
+    setPendingIds((old) => new Set(old).add(id));
+    try {
+      const result = await api.updateEvent(id, withoutId({ ...event, start, end }));
+      applySavedEvent(result.event, result.conflicts);
+    } catch (err) {
+      showError(err);
+      if (err?.status === 404) await reloadCalendar();
+    } finally {
+      setPendingIds((old) => {
+        const next = new Set(old);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  function handleKeepConflict() {
+    const c = panelConflicts[shownIndex];
+    if (c) setKeptKeys((old) => new Set(old).add(conflictKey(c)));
   }
 
   return (
@@ -238,6 +276,14 @@ export default function App() {
         </section>
         <section className="panel">
           <h2>Conflict Alert</h2>
+          <ConflictPanel
+            conflicts={panelConflicts}
+            index={shownIndex}
+            eventsById={eventsById}
+            onIndexChange={setConflictIndex}
+            onMove={handleMoveFromPanel}
+            onKeep={handleKeepConflict}
+          />
         </section>
       </aside>
 
@@ -261,7 +307,7 @@ export default function App() {
           allDaySlot={false}
           nowIndicator={true}
           editable={true}           
-          selectable={true}        
+          selectable={true}         
           events={calendarEvents}
           eventContent={(arg) => <EventBlock event={arg.event} />}
           select={handleSelect}
