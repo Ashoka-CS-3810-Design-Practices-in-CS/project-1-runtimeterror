@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
-import * as api from "./api/mockApi";
+import * as api from "./api";
 import EventForm from "./components/EventForm";
 import Notification from "./components/Notification";
 import ConflictPanel from "./components/ConflictPanel";
+import TaskPanel from "./components/TaskPanel";
+import MiniCalendar from "./components/MiniCalendar";
 import "./App.css";
 
 function toContractTime(date) {
@@ -72,18 +74,21 @@ function toErrorObject(err) {
 export default function App() {
   const [events, setEvents] = useState([]);
   const [conflicts, setConflicts] = useState([]);
-  const [form, setForm] = useState(null);         
+  const [form, setForm] = useState(null);        
   const [error, setError] = useState(null);       
-  const [busy, setBusy] = useState(false);       
+  const [busy, setBusy] = useState(false);        
   const [pendingIds, setPendingIds] = useState(new Set()); 
-  const [keptKeys, setKeptKeys] = useState(new Set());      
-  const [conflictIndex, setConflictIndex] = useState(0);    
+  const [keptKeys, setKeptKeys] = useState(new Set());     
+  const [conflictIndex, setConflictIndex] = useState(0);   
+  const calendarRef = useRef(null);   
 
   useEffect(() => {
-    api.getEvents().then((data) => {
-      setEvents(data.events);
-      setConflicts(data.conflicts);
-    });
+    api.getEvents()
+      .then((data) => {
+        setEvents(data.events);
+        setConflicts(data.conflicts);
+      })
+      .catch((err) => setError(toErrorObject(err)));
   }, []);
 
   async function reloadCalendar() {
@@ -185,7 +190,7 @@ export default function App() {
     } catch (err) {
       const e = showError(err);
       setForm((old) => old && { ...old, errorField: e.field });
-      if (err?.status === 404) {         
+      if (err?.status === 404) {          
         setForm(null);
         await reloadCalendar();
       }
@@ -269,10 +274,11 @@ export default function App() {
 
       <aside className="sidebar">
         <section className="panel">
-          <h2>Mini calendar</h2>
+          <MiniCalendar onPick={(day) => calendarRef.current?.getApi().gotoDate(day)} />
         </section>
         <section className="panel">
           <h2>Schedule a Task</h2>
+          <TaskPanel onEventCreated={applySavedEvent} onError={showError} />
         </section>
         <section className="panel">
           <h2>Conflict Alert</h2>
@@ -289,25 +295,25 @@ export default function App() {
 
       <main className="calendar-area">
         <FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
-          initialDate="2026-10-12"
           headerToolbar={{
             left: "title",
             center: "dayGridMonth,timeGridWeek,timeGridDay",
             right: "prev,today,next",
           }}
           buttonText={{ month: "Month", week: "Week", day: "Day", today: "Today" }}
-          firstDay={1}             
+          firstDay={1}              
           slotDuration="00:30:00"
           slotLabelFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
           eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
-          scrollTime="08:00:00"     
+          scrollTime="08:00:00"   
           height="100%"
           allDaySlot={false}
           nowIndicator={true}
           editable={true}           
-          selectable={true}         
+          selectable={true}        
           events={calendarEvents}
           eventContent={(arg) => <EventBlock event={arg.event} />}
           select={handleSelect}

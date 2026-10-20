@@ -1,6 +1,6 @@
 import { mockEvents } from "../mockData";
 
-let events = mockEvents.map((e) => ({ ...e })); 
+let events = mockEvents.map((e) => ({ ...e }));
 let nextId = Math.max(...events.map((e) => e.id)) + 1;
 
 const MOVABLE_BY_DEFAULT = {
@@ -10,6 +10,7 @@ const MOVABLE_BY_DEFAULT = {
   assignment: true,
   personal: true,
 };
+
 const wait = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function apiError(status, code, field, message, detail) {
@@ -136,7 +137,7 @@ export async function getAlternatives(id) {
       "This event is marked Fixed, so the planner never suggests moving it.");
   }
 
-  const day = event.start.slice(0, 10);              
+  const day = event.start.slice(0, 10);             
   const duration = toMinutes(event.end) - toMinutes(event.start);
   const dayStart = toMinutes(day + "T09:00");
   const dayEnd = toMinutes(day + "T18:00");
@@ -185,4 +186,127 @@ function describeLength(minutes) {
   if (h) parts.push(`${h} hour${h === 1 ? "" : "s"}`);
   if (m) parts.push(`${m} minute${m === 1 ? "" : "s"}`);
   return parts.join(" ") || "0 minutes";
+}
+
+let tasks = [];
+let nextTaskId = 1;
+const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
+
+export async function getTasks() {
+  await wait();
+  const sorted = [...tasks].sort(
+    (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+  return { tasks: sorted.map((t) => ({ ...t })) };
+}
+
+export async function createTask(body) {
+  await wait();
+  if (!body.name || !body.name.trim()) {
+    throw apiError(422, "ER4", "name", "Task name is missing",
+      "Every task needs a name. Type a short name for the task.");
+  }
+  if (!(body.durationMinutes > 0) || body.durationMinutes > 24 * 60) {
+    throw apiError(422, "ER5", "durationMinutes", "Invalid duration",
+      "A task must take between 1 minute and 24 hours.");
+  }
+  if (!(body.priority in PRIORITY_ORDER)) {
+    throw apiError(422, "ER4", "priority", "Priority is missing",
+      "Choose High, Medium or Low for the task.");
+  }
+  const task = { fromDate: null, toDate: null, dailyStart: null, dailyEnd: null,
+                 ...body, id: nextTaskId++ };
+  tasks.push(task);
+  return { task: { ...task } };
+}
+
+export async function deleteTask(id) {
+  await wait();
+  tasks = tasks.filter((t) => t.id !== id);
+  return { deletedId: id };
+}
+
+export async function getSuggestions(taskId) {
+  await wait(400);  
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) {
+    throw apiError(404, "ER7", null, "This task no longer exists",
+      "It may have been scheduled or deleted already.");
+  }
+  const duration = task.durationMinutes;
+  const now = Math.ceil(Date.now() / 60000);
+  const today = fromMinutes(now).slice(0, 10);
+  const lastDay = task.toDate || fromMinutes(now + 13 * 24 * 60).slice(0, 10);
+
+  const candidates = [];
+  for (let day = today; day <= lastDay; day = nextDay(day)) {
+    const dayStart = Math.max(toMinutes(day + "T09:00"), now);
+    const dayEnd = toMinutes(day + "T18:00");
+    if (dayStart >= dayEnd) continue;
+    const busy = events
+      .map((e) => [toMinutes(e.start), toMinutes(e.end)])
+      .filter(([s, e]) => s < dayEnd && e > dayStart)
+      .sort((a, b) => a[0] - b[0]);
+    let freeFrom = dayStart;
+    for (const [s, e] of [...busy, [dayEnd, dayEnd]]) {
+      const gapEnd = Math.min(s, dayEnd);
+      const gap = gapEnd - freeFrom;
+      if (gap >= duration) {
+        candidates.push({ start: freeFrom, gap, leftover: gap - duration });
+      }
+      freeFrom = Math.max(freeFrom, e);
+    }
+  }
+
+  const high = task.priority === "High";
+  candidates.sort((a, b) =>
+    high ? a.start - b.start : a.leftover - b.leftover || a.start - b.start);
+
+  const slots = candidates.slice(0, 5).map((c) => ({
+    start: fromMinutes(c.start),
+    end: fromMinutes(c.start + duration),
+    gapMinutes: c.gap,
+    leftoverMinutes: c.leftover,
+    priorityRule: high ? "earliest" : "bestFit",
+    reasons: [
+      `Free for ${describeLength(c.gap)}, which fits your ${duration}-minute task.`,
+      high ? "It is the earliest available option, which suits a High priority task."
+        : c.leftover === 0 ? "A perfect fit, so no free time is wasted."
+        : `Best fit: only ${describeLength(c.leftover)} left over, which keeps larger gaps free.`,
+    ],
+  }));
+
+  if (slots.length === 0) {
+    return { slots: [],
+      noSlotReason: `No ${duration}-minute slot is free in this window.`,
+      tryInstead: ["Shorten the task", "Choose a later deadline"] };
+  }
+  return { slots, noSlotReason: null };
+}
+
+export async function acceptSlot(taskId, body) {
+  await wait();
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) {
+    throw apiError(404, "ER7", null, "This task no longer exists",
+      "It may have been scheduled or deleted already.");
+  }
+  const s = toMinutes(body.start);
+  const e = toMinutes(body.end);
+  const taken = events.some((ev) => toMinutes(ev.start) < e && s < toMinutes(ev.end));
+  if (taken) {
+    throw apiError(409, "TAKEN", null, "That time is no longer free",
+      "The calendar changed after the suggestions were shown. Here are fresh suggestions.");
+  }
+  const event = {
+    id: nextId++, title: task.name, description: "", category: task.category,
+    location: "", start: body.start, end: body.end, priority: task.priority,
+    movable: MOVABLE_BY_DEFAULT[task.category],
+  };
+  events.push(event);
+  tasks = tasks.filter((t) => t.id !== taskId);
+  return { event: { ...event }, conflicts: [], removedTaskId: taskId };
+}
+
+function nextDay(day) {
+  return fromMinutes(toMinutes(day + "T00:00") + 24 * 60).slice(0, 10);
 }

@@ -99,6 +99,7 @@
   outline-offset: -1px;
 }
 
+.is-pending {
   opacity: 0.55;
   outline: 2px dashed #555;
   outline-offset: -2px;
@@ -172,7 +173,6 @@ button.icon-button { border: none; padding: 2px 6px; font-size: 1rem; }
   margin-top: 4px;
 }
 .confirm-text { font-size: 0.8rem; }
-
 .popup .has-error {
   border: 2px solid #e85b5b;
   background: #fff3f3;
@@ -240,3 +240,75 @@ button.icon-button { border: none; padding: 2px 6px; font-size: 1rem; }
 .slot-card.selected { border: 2px solid #2d6cdf; }
 .slot-time { font-weight: 600; font-size: 0.85rem; }
 .slot-reason { font-size: 0.75rem; color: #444; }
+
+.task-form { display: flex; flex-direction: column; gap: 6px; }
+.task-form .row { display: flex; gap: 8px; }
+.task-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  font-size: 0.75rem;
+  color: #555;
+}
+.task-form input,
+.task-form select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border: 1.2px solid #999;
+  border-radius: 999px;
+  background: #fff;
+  color: #222;
+  min-width: 0;
+}
+.task-form .has-error { border: 2px solid #e85b5b; background: #fff3f3; }
+.task-form button { align-self: flex-start; }
+
+.suggestions { margin-top: 10px; }
+.no-slot {
+  border: 1.5px solid #e85b5b;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin: 6px 0;
+}
+
+.task-list { margin-top: 10px; }
+.task-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 0;
+  border-top: 1px solid #eee;
+}
+.task-row button { padding: 2px 10px; font-size: 0.75rem; }
+.task-form label { min-width: 0; }
+.task-form input,
+.task-form select { width: 100%; box-sizing: border-box; }
+
+.mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+}
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.mini-weekday { font-size: 0.7rem; color: #888; }
+.mini-day {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-size: 0.8rem;
+  border-radius: 999px;
+}
+.mini-day:hover { background: #eee; }
+.mini-day.other-month { color: #bbb; }
+.mini-day.today { background: #f2b3d6; font-weight: 600; }
