@@ -42,8 +42,8 @@ def validate_event(data, today):
     description = _text(data, "description")
     location = _text(data, "location")
 
-    start = _parse_time(data.get("start"), "start")
-    end = _parse_time(data.get("end"), "end")
+    start = parse_time(data.get("start"), "start")
+    end = parse_time(data.get("end"), "end")
     if end <= start:
         raise ValidationError("ER1", "end", "Invalid end time",
                               "End time must be after start time.")
@@ -187,7 +187,7 @@ def _check_in_range(minutes, field, today):
 # Small parsers
 # ----------------------------------------------------------------------
 
-def _parse_time(value, field):
+def parse_time(value, field):
     try:
         return to_minutes(value)
     except (ValueError, TypeError):
