@@ -22,6 +22,10 @@ class EventStore:
     def all_sorted(self) -> list[Event]:
         return list(self._sorted)
 
+    def sorted_events(self) -> list[Event]:
+        """The live sorted list, not a copy. Read-only: never change it."""
+        return self._sorted
+
     def __len__(self) -> int:
         return len(self._by_id)
 
