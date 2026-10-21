@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import * as api from "../api/mockApi";
+import * as api from "../api";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",

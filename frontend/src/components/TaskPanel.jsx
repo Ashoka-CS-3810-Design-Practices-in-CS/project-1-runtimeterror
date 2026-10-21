@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import * as api from "../api/mockApi";
+import * as api from "../api";
 
 const CATEGORIES = [
   ["assignment", "Assignment"],

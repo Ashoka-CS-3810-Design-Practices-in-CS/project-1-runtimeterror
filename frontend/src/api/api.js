@@ -35,7 +35,18 @@ async function request(method, path, body) {
   throw { status: response.status, error: { code: null, field: null, ...error } };
 }
 
-export const getEvents = () => request("GET", "/events");
+function allowedRange() {
+  const pad = (n) => String(n).padStart(2, "0");
+  const fmt = (d) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`;
+  const from = new Date();
+  from.setMonth(from.getMonth() - 6);
+  const to = new Date();
+  to.setFullYear(to.getFullYear() + 1);
+  to.setDate(to.getDate() + 1);
+  return `start=${fmt(from)}&end=${fmt(to)}`;
+}
+export const getEvents = () => request("GET", `/events?${allowedRange()}`);
 export const createEvent = (body) => request("POST", "/events", body);
 export const updateEvent = (id, body) => request("PUT", `/events/${id}`, body);
 export const deleteEvent = (id) => request("DELETE", `/events/${id}`);
