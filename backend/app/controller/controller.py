@@ -71,6 +71,8 @@ class Controller:
     def create_event(self, data):
         event = validate_event(data, self._today())
         stored = self.events.add(event)
+        if self.storage:
+            self.storage.save_event(stored)
         return EventResult(stored, self._conflicts_for(stored))
 
     def update_event(self, event_id, data):
@@ -78,11 +80,15 @@ class Controller:
         self._event_or_404(event_id)
         event = replace(validate_event(data, self._today()), id=event_id)
         self.events.update(event)
+        if self.storage:
+            self.storage.save_event(event)
         return EventResult(event, self._conflicts_for(event))
 
     def delete_event(self, event_id):
         self._event_or_404(event_id)
         self.events.remove(event_id)
+        if self.storage:
+            self.storage.delete_event(event_id)
         return event_id
 
     def alternatives(self, event_id):
@@ -100,7 +106,10 @@ class Controller:
 
     def create_task(self, data):
         task = validate_task(data, self.prefs, self._today())
-        return self.tasks.add(task)
+        stored = self.tasks.add(task)
+        if self.storage:
+            self.storage.save_task(stored)
+        return stored
 
     def list_tasks(self, priority=None):
         if priority in (None, "All"):
@@ -113,6 +122,8 @@ class Controller:
     def delete_task(self, task_id):
         self._task_or_404(task_id)
         self.tasks.remove(task_id)
+        if self.storage:
+            self.storage.delete_task(task_id)
         return task_id
 
     def suggest(self, task_id):
@@ -144,6 +155,8 @@ class Controller:
 
         stored = self.events.add(event)
         self.tasks.remove(task_id)
+        if self.storage:
+            self.storage.save_booking(stored, task_id)   # one transaction
         return Booking(stored, [], task_id)
 
     # ------------------------------------------------------------------
@@ -155,6 +168,8 @@ class Controller:
 
     def set_preferences(self, data):
         self.prefs = validate_preferences(data)         # raises before anything changes
+        if self.storage:
+            self.storage.save_preferences(self.prefs)
         return self.prefs
 
     # ------------------------------------------------------------------
@@ -191,3 +206,19 @@ class Controller:
 
     def _now_minutes(self):
         return to_minutes(self._clock().strftime(FORMAT))
+
+    def __init__(self, events, tasks, prefs=None, clock=datetime.now, storage=None):
+        self.events = events                    # EventStore
+        self.tasks = tasks                      # TaskStore
+        self.prefs = prefs or Preferences()
+        self._clock = clock
+        self.storage = storage                  # SQLiteStorage, or None (memory only)
+
+    def attach_storage(self, storage):
+        """Load everything saved so far, then save every change from now on."""
+        self.events.load_sorted(storage.load_events())     # already in start order
+        self.tasks.load(storage.load_tasks())
+        saved = storage.load_preferences()
+        if saved is not None:
+            self.prefs = saved
+        self.storage = storage
