@@ -49,8 +49,8 @@ def explain_slot(slot, duration, priority, category, preferred_time, cutoff_minu
     # Rule 1 of the ranking: cutoff (only worth saying when it was missed).
     if not slot["before_cutoff"]:
         reasons.append(
-            f"This is after your {format_clock(cutoff_minutes)} cutoff, "
-            "so it is ranked below every slot before the cutoff."
+            f"This ends after your {format_clock(cutoff_minutes)} cutoff, "
+            "so it is ranked below every slot that finishes by the cutoff."
         )
 
     # Rule 3 of the ranking: priority rule.

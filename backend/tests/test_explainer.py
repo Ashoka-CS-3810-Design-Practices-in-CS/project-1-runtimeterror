@@ -78,3 +78,9 @@ def test_explanations_agree_with_real_ranking():
         text = " ".join(explain(slot, priority="Medium"))
         assert ("cutoff" in text) == (not slot["before_cutoff"])
         assert ("Matches" in text) == slot["matches_preferred"]
+
+
+def test_straddling_slot_is_explained_as_ending_after_the_cutoff():
+    slot = rank_slots([(20 * 60, 22 * 60)], 90, "High", None, CUTOFF, "Flexible")[0]
+    text = " ".join(explain_slot(slot, 90, "High", "assignment", None, CUTOFF))
+    assert "ends after your 9 PM cutoff" in text

@@ -56,6 +56,12 @@ class SQLiteStorage:
         with self._db:                                  # one transaction
             self._write_event(event)
 
+    def save_events(self, events):
+        """Bulk save in ONE transaction (demo loader and performance tests)."""
+        with self._db:
+            for event in events:
+                self._write_event(event)
+
     def delete_event(self, event_id):
         with self._db:
             self._db.execute("DELETE FROM events WHERE id = ?", (event_id,))

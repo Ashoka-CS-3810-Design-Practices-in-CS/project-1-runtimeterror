@@ -168,3 +168,16 @@ def test_alternatives_when_nothing_fits():
     result = find_alternatives(store, long_one, Preferences())
     assert result.slots == ()
     assert "No free 540-minute slot" in result.no_slot_reason
+
+
+def test_flexible_finder_offers_a_slot_that_runs_past_the_cutoff():
+    store = EventStore()
+    add(store, "busy", t(9), t(20))                 # free 8 PM to 10 PM only
+    result = search(store, duration=90, daily_start=9 * 60, daily_end=22 * 60)
+    assert [(s.start, s.end) for s in result.slots] == [(t(20), t(21, 30))]
+    assert result.slots[0].before_cutoff is False
+    assert "ends after your 9 PM cutoff" in " ".join(result.slots[0].reasons)
+
+    strict = search(store, duration=90, daily_start=9 * 60, daily_end=22 * 60,
+                    prefs=Preferences(cutoff_mode="Strict"))
+    assert strict.slots == ()

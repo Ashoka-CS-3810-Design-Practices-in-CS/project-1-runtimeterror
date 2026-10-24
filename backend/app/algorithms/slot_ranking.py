@@ -62,7 +62,7 @@ def rank_slots(free_gaps, duration, priority, preferred_time,
         cutoff = day_start + cutoff_minutes
 
         for piece_start, piece_end, is_before_cutoff in _split_at_cutoff(
-                gap_start, gap_end, cutoff, cutoff_mode):
+                gap_start, gap_end, cutoff, cutoff_mode, duration):
 
             # Fit check: the piece must be long enough for the task.
             piece_length = piece_end - piece_start
@@ -121,24 +121,30 @@ def rank_slots(free_gaps, duration, priority, preferred_time,
 # Helpers (small, single-purpose)
 # ----------------------------------------------------------------------
 
-def _split_at_cutoff(gap_start, gap_end, cutoff, cutoff_mode):
+def _split_at_cutoff(gap_start, gap_end, cutoff, cutoff_mode, duration):
     """
     Cut a gap at the cutoff and return a list of
     (start, end, is_before_cutoff) pieces.
       Strict:   only the part before the cutoff is kept.
-      Flexible: the part before is kept, and the part after is kept too,
-                marked as after the cutoff (it will be ranked last).
+      Flexible: the part before is kept, and a late piece is kept too. The late
+                piece normally starts at the cutoff. But if the task does not
+                fit before the cutoff, the late piece is the whole gap, so the
+                task may start before the cutoff and run past it (a last
+                resort, ranked below every slot that ends by the cutoff).
     """
     pieces = []
 
     before = (gap_start, min(gap_end, cutoff))
-    if before[0] < before[1]:
+    before_length = max(0, before[1] - before[0])
+    if before_length > 0:
         pieces.append((before[0], before[1], True))
 
     if cutoff_mode == "Flexible":
-        after = (max(gap_start, cutoff), gap_end)
-        if after[0] < after[1]:
-            pieces.append((after[0], after[1], False))
+        late_start = max(gap_start, cutoff)
+        if gap_start < cutoff < gap_end and before_length < duration:
+            late_start = gap_start          # the task has to straddle the cutoff
+        if late_start < gap_end:
+            pieces.append((late_start, gap_end, False))
 
     return pieces
 

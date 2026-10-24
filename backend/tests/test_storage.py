@@ -141,3 +141,9 @@ def test_every_change_survives_a_restart(tmp_path):
     new = ctl2.create_event(ev(start="2026-10-23T10:00", end="2026-10-23T11:00"))
     assert new.event.id == 4
     storage2.close()
+
+
+def test_bulk_save_events(storage):
+    events = [make_event(i, i * 100) for i in range(1, 51)]
+    storage.save_events(events)
+    assert storage.load_events() == events
