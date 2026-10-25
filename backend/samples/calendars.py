@@ -1,11 +1,3 @@
-"""Sample inputs for the demo, the tests and the benchmarks.
-
-Two kinds of calendar:
-  * Named calendars (demo_events / demo_tasks): one hand-made case per day of a
-    week, so every tricky situation can be shown on screen.
-  * Seeded random calendars (random_events): the same seed always gives the
-    same events, so tests and timings can be repeated.
-"""
 import random
 from datetime import timedelta
 
@@ -15,19 +7,7 @@ from app.models.timeconv import to_minutes
 MINUTES_PER_DAY = 24 * 60
 RANDOM_FIRST_DAY = to_minutes("2026-10-01T00:00") // MINUTES_PER_DAY
 
-
-# ----------------------------------------------------------------------
-# Seeded random calendars (for tests and benchmarks)
-# ----------------------------------------------------------------------
-
 def random_events(n, seed, span_days=30, first_day=RANDOM_FIRST_DAY, max_duration=240):
-    """
-    n random events with ids 1..n, in creation order (NOT sorted by start).
-
-    Every time is a multiple of 5 minutes, so touching and identical events
-    happen often. About 3 in 100 events are long (10 to 24 hours), which
-    exercises the 24-hour lookback in Algorithm 3.
-    """
     rng = random.Random(seed)
     base = first_day * MINUTES_PER_DAY
     priorities = (*PRIORITIES, None)
@@ -47,11 +27,6 @@ def random_events(n, seed, span_days=30, first_day=RANDOM_FIRST_DAY, max_duratio
 def sorted_by_start(events):
     return sorted(events, key=lambda e: (e.start, e.id))
 
-
-# ----------------------------------------------------------------------
-# The demo week (one case per day), written as API-style input
-# ----------------------------------------------------------------------
-
 def _event(title, category, day, start, end, end_day=None, priority=None,
            movable=None, location=""):
     data = {"title": title, "category": category, "location": location,
@@ -63,18 +38,7 @@ def _event(title, category, day, start, end, end_day=None, priority=None,
         data["movable"] = movable
     return data
 
-
 def demo_events(monday):
-    """
-    monday: a datetime.date. Returns the demo events for that week.
-
-      Mon  touching events        no conflict (half-open intervals)
-      Tue  nested + identical     two conflicts of 60 minutes
-      Wed  overnight              Night shift 23:00 to 01:00 overlaps a call at 00:30
-      Thu  three at once          three pairs: 60, 30 and 60 minutes
-      Fri  best-time worked example from Assignment 1 (section 5.4.3)
-      Sat  Fixed class vs Movable study session (use cases UC1 and UC3)
-    """
     mon, tue, wed, thu, fri, sat = (monday + timedelta(days=i) for i in range(6))
     return [
         # Monday: touching
@@ -108,7 +72,6 @@ def demo_events(monday):
                location="Lab 2"),
         _event("Study Session", "assignment", sat, "11:00", "12:00", priority="Medium"),
     ]
-
 
 def demo_tasks(monday):
     """Flexible tasks. The first one is the Assignment 1 example (Friday, 90 minutes)."""

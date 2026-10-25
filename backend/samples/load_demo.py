@@ -1,13 +1,4 @@
-"""Load the sample calendars into the app's database.
 
-Run from backend/:
-    python -m samples.load_demo                    demo week + tasks into calendar.db
-    python -m samples.load_demo --reset            start from an empty database first
-    python -m samples.load_demo --big 1000         also add 1000 generated events
-    python -m samples.load_demo --monday 2026-10-26   use a specific week (a Monday)
-
-Stop the server before running this, then start it again.
-"""
 import argparse
 import os
 from dataclasses import replace
@@ -21,13 +12,13 @@ from samples.calendars import demo_events, demo_tasks, random_events
 
 
 def default_monday(today):
-    """This week's Monday, or next Monday at the weekend."""
+
     monday = today - timedelta(days=today.weekday())
     return monday + timedelta(days=7) if today.weekday() >= 5 else monday
 
 
 def populate(controller, monday):
-    """Create the demo events and tasks through the Controller (so they are validated)."""
+
     for data in demo_events(monday):
         controller.create_event(data)
     for data in demo_tasks(monday):
@@ -35,7 +26,7 @@ def populate(controller, monday):
 
 
 def add_big_calendar(storage, controller, count, today):
-    """Bulk-add generated events around today (inside the supported date range)."""
+
     first_day = (datetime.combine(today, datetime.min.time()) - datetime(2000, 1, 1)).days - 90
     next_id = max((e.id for e in controller.events.sorted_events()), default=0) + 1
     events = [replace(e, id=next_id + i)

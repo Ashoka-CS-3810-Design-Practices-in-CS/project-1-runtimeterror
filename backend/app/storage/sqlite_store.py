@@ -1,6 +1,4 @@
-"""I/O layer: saves and loads records with SQLite.
 
-"""
 import json
 import sqlite3
 from dataclasses import asdict
@@ -42,22 +40,18 @@ CREATE TABLE IF NOT EXISTS preferences (
 
 class SQLiteStorage:
     def __init__(self, path):
-        # check_same_thread=False: the API runs on one event loop, but the
-        # test client may use a different thread per request.
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._db.executescript(SCHEMA)
 
     def close(self):
         self._db.close()
 
-    # ---------- events ----------
 
     def save_event(self, event):
-        with self._db:                                  # one transaction
+        with self._db:                                 
             self._write_event(event)
 
     def save_events(self, events):
-        """Bulk save in ONE transaction (demo loader and performance tests)."""
         with self._db:
             for event in events:
                 self._write_event(event)
@@ -67,7 +61,6 @@ class SQLiteStorage:
             self._db.execute("DELETE FROM events WHERE id = ?", (event_id,))
 
     def load_events(self):
-        """All events ordered by (start, id), the same order the store keeps."""
         rows = self._db.execute(
             "SELECT id, title, description, location, category, start_min, end_min,"
             " priority, movable FROM events ORDER BY start_min, id")
@@ -83,8 +76,6 @@ class SQLiteStorage:
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (e.id, e.title, e.description, e.location, e.category,
              e.start, e.end, e.priority, int(e.movable)))
-
-    # ---------- tasks ----------
 
     def save_task(self, task):
         with self._db:
@@ -110,14 +101,10 @@ class SQLiteStorage:
             (t.id, t.name, t.category, t.duration, t.priority,
              t.from_date, t.to_date, t.daily_start, t.daily_end))
 
-    # ---------- accepting a slot: new event + task removed, all or nothing ----------
-
     def save_booking(self, event, task_id):
         with self._db:
             self._write_event(event)
             self._db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-
-    # ---------- preferences (one row) ----------
 
     def save_preferences(self, prefs):
         with self._db:

@@ -1,5 +1,4 @@
-"""Every endpoint in docs/API_CONTRACT.md. Thin on purpose: read the request,
-call the Controller, translate the answer. No rules here."""
+
 from fastapi import APIRouter, Request
 
 from app.api import schemas
@@ -28,8 +27,6 @@ def parse_id(text):
 def build_router(ctl):
     router = APIRouter(prefix="/api")
 
-    # ---------- events ----------
-
     @router.get("/events")
     async def list_events(start: str | None = None, end: str | None = None):
         events, conflicts = ctl.list_events(start, end)
@@ -56,8 +53,6 @@ def build_router(ctl):
     async def alternatives(event_id: str):
         return schemas.search_out(ctl.alternatives(parse_id(event_id)))
 
-    # ---------- tasks ----------
-
     @router.get("/tasks")
     async def list_tasks(priority: str | None = None):
         return {"tasks": [schemas.task_out(t) for t in ctl.list_tasks(priority)]}
@@ -80,8 +75,6 @@ def build_router(ctl):
         return {"event": schemas.event_out(booking.event),
                 "conflicts": [schemas.conflict_out(c) for c in booking.conflicts],
                 "removedTaskId": booking.removed_task_id}
-
-    # ---------- preferences ----------
 
     @router.get("/preferences")
     async def get_preferences():

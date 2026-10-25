@@ -1,9 +1,3 @@
-#unit tests for the stores
-
-"""what is being tsted is that after any sequence of inserts, edits and deletes,
-the sorted array must still be in start time order and must contain
-exactly the same event ids as the hash map.
-"""
 import random
 from dataclasses import replace
 
@@ -19,18 +13,15 @@ def make_event(start_text, end_text, title="E", category="meeting"):
     return Event(id=None, title=title, start=to_minutes(start_text),
                  end=to_minutes(end_text), category=category)
 
-
 def check_invariants(store: EventStore):
     events = store.all_sorted()
     starts = [(e.start, e.id) for e in events]
     assert starts == sorted(starts), "sorted array is out of order"
     assert {e.id for e in events} == set(store._by_id), "DS1 and DS2 disagree"
 
-
 def test_movable_default_comes_from_category():
     assert make_event("2026-10-13T10:00", "2026-10-13T11:00", category="class").movable is False
     assert make_event("2026-10-13T10:00", "2026-10-13T11:00", category="assignment").movable is True
-
 
 def test_events_cannot_be_changed_in_place():
     event = make_event("2026-10-13T10:00", "2026-10-13T11:00")
@@ -61,7 +52,6 @@ def test_remove_missing_id_raises():
     with pytest.raises(KeyError):      
         EventStore().remove(99)
 
-
 def test_update_moves_event_to_new_position():
     store = EventStore()
     a = store.add(make_event("2026-10-13T09:00", "2026-10-13T10:00", title="A"))
@@ -79,7 +69,6 @@ def test_window_includes_event_starting_before_window():
     found = store.events_in_window(to_minutes("2026-10-13T09:00"), to_minutes("2026-10-13T18:00"))
     assert len(found) == 1
 
-
 def test_window_excludes_touching_events():
     store = EventStore()
     store.add(make_event("2026-10-13T08:00", "2026-10-13T09:00"))
@@ -87,10 +76,9 @@ def test_window_excludes_touching_events():
     found = store.events_in_window(to_minutes("2026-10-13T09:00"), to_minutes("2026-10-13T18:00"))
     assert found == []
 
-
 def test_window_finds_24_hour_event_from_previous_day():
     store = EventStore()
-    store.add(make_event("2026-10-12T10:00", "2026-10-13T10:00"))   # exactly 24h
+    store.add(make_event("2026-10-12T10:00", "2026-10-13T10:00"))   
     found = store.events_in_window(to_minutes("2026-10-13T09:00"), to_minutes("2026-10-13T18:00"))
     assert len(found) == 1
 
@@ -110,7 +98,6 @@ def test_load_sorted_rejects_unsorted_input():
               Event(id=2, title="E", start=50, end=80, category="meeting")]
     with pytest.raises(ValueError):
         EventStore().load_sorted(events)
-
 
 def test_random_operations_keep_invariants():
     rng = random.Random(42)

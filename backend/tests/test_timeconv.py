@@ -6,7 +6,6 @@ from app.models.timeconv import clock_to_minutes, from_minutes, to_minutes
 def test_reference_date_is_minute_zero():
     assert to_minutes("2000-01-01T00:00") == 0
 
-
 def test_crossing_midnight_is_plain_subtraction():
     late = to_minutes("2026-09-21T23:00")
     early_next_day = to_minutes("2026-09-22T01:00")

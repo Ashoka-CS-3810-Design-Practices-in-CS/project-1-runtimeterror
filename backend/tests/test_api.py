@@ -8,13 +8,11 @@ from app.main import create_app
 NOW = datetime(2026, 10, 20, 10, 0)
 RANGE = {"start": "2026-10-21T00:00", "end": "2026-10-22T00:00"}
 
-
 @pytest.fixture
 def client(tmp_path):
     app = create_app(str(tmp_path / "test.db"), clock=lambda: NOW)
-    with TestClient(app) as c:                  # "with" runs startup and shutdown
+    with TestClient(app) as c:                 
         yield c
-
 
 def event(**changes):
     data = {"title": "Meeting", "category": "meeting",
@@ -22,25 +20,17 @@ def event(**changes):
     data.update(changes)
     return data
 
-
 def task(**changes):
     data = {"name": "Write report", "category": "assignment",
             "durationMinutes": 60, "priority": "Medium"}
     data.update(changes)
     return data
 
-
 def error(response):
     return response.json()["error"]
 
-
-# ---------- health ----------
-
 def test_health(client):
     assert client.get("/api/health").json() == {"status": "ok"}
-
-
-# ---------- events ----------
 
 def test_create_event_response_shape(client):
     r = client.post("/api/events", json=event(priority="Medium"))
@@ -53,7 +43,7 @@ def test_create_event_response_shape(client):
     }
 
 
-def test_conflict_shape_matches_the_contract(client):          # test T2
+def test_conflict_shape_matches_the_contract(client):         
     client.post("/api/events", json=event(title="Lecture", category="class",
                                           end="2026-10-21T11:30"))
     r = client.post("/api/events", json=event(title="Group", start="2026-10-21T11:00",
@@ -65,7 +55,7 @@ def test_conflict_shape_matches_the_contract(client):          # test T2
         "overlapMinutes": 30}]
 
 
-def test_invalid_event_gives_the_error_shape_and_changes_nothing(client):   # T7
+def test_invalid_event_gives_the_error_shape_and_changes_nothing(client):   
     r = client.post("/api/events", json=event(start="2026-10-21T14:00",
                                               end="2026-10-21T13:00"))
     assert r.status_code == 422
@@ -123,9 +113,6 @@ def test_alternatives(client):
     body = r.json()
     assert body["slots"] and body["noSlotReason"] is None
 
-
-# ---------- tasks ----------
-
 def test_create_task_response_shape(client):
     r = client.post("/api/tasks", json=task())
     assert r.status_code == 201
@@ -158,9 +145,6 @@ def test_tasks_sorted_filtered_and_deleted(client):
     assert client.delete("/api/tasks/1").json() == {"deletedId": 1}
     assert client.delete("/api/tasks/1").status_code == 404
 
-
-# ---------- suggestions and accepting ----------
-
 def test_suggestions_shape_and_priority_rule_names(client):
     medium = client.post("/api/tasks", json=task()).json()["task"]
     high = client.post("/api/tasks", json=task(priority="High")).json()["task"]
@@ -169,7 +153,7 @@ def test_suggestions_shape_and_priority_rule_names(client):
     assert set(slot) == {"start", "end", "gapStart", "gapEnd", "gapMinutes",
                          "beforeCutoff", "matchesPreferredTime", "priorityRule",
                          "leftoverMinutes", "reasons"}
-    assert slot["start"] == "2026-10-20T10:00"          # not in the past
+    assert slot["start"] == "2026-10-20T10:00"          
     assert slot["priorityRule"] == "bestFit" and slot["reasons"]
 
     slot = client.post(f"/api/tasks/{high['id']}/suggestions").json()["slots"][0]
@@ -207,10 +191,7 @@ def test_t9_slot_taken_returns_409(client):
                     json={"start": slot["start"], "end": slot["end"]})
     assert r.status_code == 409
     assert error(r)["message"] == "That slot is no longer free"
-    assert len(client.get("/api/tasks").json()["tasks"]) == 1      # task stays
-
-
-# ---------- preferences ----------
+    assert len(client.get("/api/tasks").json()["tasks"]) == 1      
 
 def test_preferences_default_and_update(client):
     assert client.get("/api/preferences").json()["preferences"] == {
@@ -231,9 +212,6 @@ def test_invalid_preferences(client):
     assert (error(r)["code"], error(r)["field"]) == ("ER8", "cutoff")
     r = client.put("/api/preferences", json={"cutoffMode": "Soft"})
     assert error(r)["field"] == "cutoffMode"
-
-
-# ---------- save and reload through the whole stack ----------
 
 def test_everything_survives_a_restart(tmp_path):
     db = str(tmp_path / "keep.db")
