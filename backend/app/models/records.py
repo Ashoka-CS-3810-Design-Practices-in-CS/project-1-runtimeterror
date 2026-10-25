@@ -1,4 +1,4 @@
-#the records of the Data layer: Event, Task and Preferences.
+#storing the records of the Data layer Event, Task and Preferences.
 
 from dataclasses import dataclass, field
 
@@ -38,7 +38,7 @@ class Event:
     @property
     def duration(self) -> int:
         return self.end - self.start
-
+#task has no start end once accepted the time suggested we can make it event with times
 
 @dataclass(frozen=True)
 class Task:
@@ -69,7 +69,7 @@ class Slot:
     priority_rule: str                  # "earliest_start" or "best_fit"
     reasons: tuple[str, ...] = ()       # filled in by the Explainer
 
-    
+
 @dataclass
 class Preferences:
     preferred_time: dict = field(default_factory=lambda: {
