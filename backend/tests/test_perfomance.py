@@ -1,8 +1,3 @@
-"""Assignment 3, section 3.7: the targets from Assignment 1.
-
-Timings come from samples/benchmark.py (run `python -m samples.benchmark` for
-the full table). Seeded random calendars of 1,000 and 5,000 events.
-"""
 import pytest
 
 from samples.benchmark import TARGETS_MS, measure

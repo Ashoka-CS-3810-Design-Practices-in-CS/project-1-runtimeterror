@@ -1,11 +1,4 @@
-"""Assignment 3, section 3.5: each algorithm against a slow version that is
-obviously correct, on seeded random calendars.
-
-The slow versions live only here. Every time in these calendars is a multiple
-of 5 minutes, so touching and identical events are common.
-"""
 import random
-
 import pytest
 
 from app.algorithms.best_time import find_best_slots
@@ -18,11 +11,9 @@ from samples.calendars import MINUTES_PER_DAY, RANDOM_FIRST_DAY, random_events
 SEEDS = range(20)
 BASE = RANDOM_FIRST_DAY * MINUTES_PER_DAY
 
-# (number of events, days they are spread over, longest normal event in minutes)
-DENSE = (60, 2, 600)       # lots of overlaps, including three or more at once
-SPARSE = (40, 30, 240)     # mostly separate events
+DENSE = (60, 2, 600)       
+SPARSE = (40, 30, 240)    
 SHAPES = [DENSE, SPARSE]
-
 
 def build_store(seed, shape):
     n, span_days, max_duration = shape
@@ -38,7 +29,6 @@ def brute_overlap(a_start, a_end, b_start, b_end):
 
 
 def brute_pairs(events):
-    """The O(n squared) check: every pair, compared directly."""
     pairs = {}
     for i, a in enumerate(events):
         for b in events[i + 1:]:
@@ -47,11 +37,6 @@ def brute_pairs(events):
                 pairs[frozenset((a.id, b.id))] = overlap
     return pairs
 
-
-# ----------------------------------------------------------------------
-# Algorithm 3: conflict detection
-# ----------------------------------------------------------------------
-
 @pytest.mark.parametrize("shape", SHAPES)
 @pytest.mark.parametrize("seed", SEEDS)
 def test_full_scan_reports_exactly_the_pairs_brute_force_finds(seed, shape):
@@ -59,10 +44,9 @@ def test_full_scan_reports_exactly_the_pairs_brute_force_finds(seed, shape):
     found = find_all_conflicts(events)
 
     reported = {frozenset((a.id, b.id)): (start, end) for a, b, start, end in found}
-    assert len(found) == len(reported)                  # no pair reported twice
-    assert reported == brute_pairs(events)              # same pairs, same overlap minutes
+    assert len(found) == len(reported)                 
+    assert reported == brute_pairs(events)             
     assert all(a.start <= b.start for a, b, _, _ in found)
-
 
 @pytest.mark.parametrize("shape", SHAPES)
 @pytest.mark.parametrize("seed", SEEDS)
@@ -72,9 +56,8 @@ def test_incremental_check_matches_brute_force_for_random_queries(seed, shape):
     rng = random.Random(seed + 1000)
 
     for _ in range(60):
-        # queries start up to a day before the calendar and end up to a day after it
         start = BASE - MINUTES_PER_DAY + 5 * rng.randrange((span_days + 2) * 288)
-        end = start + 5 * rng.randrange(1, 289)         # 5 minutes to 24 hours
+        end = start + 5 * rng.randrange(1, 289)         
         found = {e.id for e in find_conflicts_for_event(events, start, end)}
         expected = {e.id for e in events if brute_overlap(start, end, e.start, e.end)}
         assert found == expected
@@ -94,11 +77,6 @@ def test_incremental_and_full_scan_report_the_same_conflicts(seed, shape):
     from_full_scan = {frozenset((a.id, b.id)) for a, b, _, _ in find_all_conflicts(events)}
     assert from_incremental == from_full_scan
 
-
-# ----------------------------------------------------------------------
-# events_in_window and Algorithm 1: busy blocks and free gaps
-# ----------------------------------------------------------------------
-
 @pytest.mark.parametrize("seed", SEEDS)
 def test_gaps_and_blocks_match_a_minute_by_minute_check(seed):
     store = build_store(seed, (12, 1, 180))
@@ -107,7 +85,7 @@ def test_gaps_and_blocks_match_a_minute_by_minute_check(seed):
 
     for _ in range(8):
         window_start = BASE + 5 * rng.randrange(200)
-        window_end = window_start + 5 * rng.randrange(12, 120)      # 1 to 10 hours
+        window_end = window_start + 5 * rng.randrange(12, 120)     
 
         in_window = store.events_in_window(window_start, window_end)
         brute_in_window = sorted(
@@ -117,14 +95,12 @@ def test_gaps_and_blocks_match_a_minute_by_minute_check(seed):
 
         busy, gaps = find_busy_blocks_and_free_gaps(in_window, window_start, window_end)
 
-        # the shape of the answer
         for start, end in busy + gaps:
             assert window_start <= start < end <= window_end
         assert busy == sorted(busy) and gaps == sorted(gaps)
         for (_, earlier_end), (later_start, _) in zip(busy, busy[1:]):
-            assert earlier_end < later_start            # touching events were merged
+            assert earlier_end < later_start           
 
-        # every minute is in exactly one busy block or one free gap
         busy_minutes = {m for s, e in busy for m in range(s, e)}
         gap_minutes = {m for s, e in gaps for m in range(s, e)}
         assert sum(e - s for s, e in busy) + sum(e - s for s, e in gaps) \
@@ -132,18 +108,12 @@ def test_gaps_and_blocks_match_a_minute_by_minute_check(seed):
         assert busy_minutes | gap_minutes == set(range(window_start, window_end))
         assert not busy_minutes & gap_minutes
 
-        # and "busy" means exactly what the events say
         truly_busy = {m for e in in_window
                       for m in range(max(e.start, window_start), min(e.end, window_end))}
         assert busy_minutes == truly_busy
 
 
-# ----------------------------------------------------------------------
-# Algorithm 2 (through the finder): the guarantees from Assignment 1
-# ----------------------------------------------------------------------
-
 def rank_key(slot):
-    """The four ranking rules, rebuilt from the slot's own data."""
     priority_key = slot.start if slot.priority_rule == "earliest_start" else slot.leftover
     return (not slot.before_cutoff, not slot.matches_preferred, priority_key, slot.start)
 
@@ -162,7 +132,7 @@ def test_slot_guarantees_on_random_calendars(seed, mode):
     daily_end = rng.choice([17 * 60, 18 * 60, 22 * 60])
 
     for _ in range(5):
-        duration = 5 * rng.randrange(1, 49)             # 5 to 240 minutes
+        duration = 5 * rng.randrange(1, 49)             
         priority = rng.choice(["High", "Medium", "Low"])
         category = rng.choice(CATEGORIES)
 
@@ -173,7 +143,7 @@ def test_slot_guarantees_on_random_calendars(seed, mode):
                 daily_start=daily_start, daily_end=daily_end)
 
         result = search()
-        assert search() == result                       # same input, same ranking
+        assert search() == result                       
 
         assert len(result.slots) <= 5
         for slot in result.slots:
@@ -199,7 +169,6 @@ def test_slot_guarantees_on_random_calendars(seed, mode):
 @pytest.mark.parametrize("mode", ["Flexible", "Strict"])
 @pytest.mark.parametrize("seed", SEEDS)
 def test_finder_never_misses_a_slot_that_exists(seed, mode):
-    """If a free position exists, at least one slot is returned (and the reverse)."""
     rng = random.Random(seed + 500)
     store = build_store(seed, (25, 3, 240))
     events = store.sorted_events()
@@ -222,7 +191,6 @@ def test_finder_never_misses_a_slot_that_exists(seed, mode):
             cutoff = day_start + prefs.cutoff
             for start in range(day_start + daily_start, day_start + daily_end - duration + 1, 5):
                 end = start + duration
-                # Strict never goes past the cutoff. Flexible may, as a last resort.
                 if mode == "Strict" and end > cutoff:
                     continue
                 if any(e.start < end and start < e.end for e in events):

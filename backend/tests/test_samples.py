@@ -1,8 +1,3 @@
-"""The sample inputs (deliverable: representative sample calendars).
-
-Loads the demo week through the real Controller and checks that every case
-behaves the way the design documents say it should.
-"""
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -16,7 +11,7 @@ from samples.calendars import demo_events, demo_tasks, random_events
 from samples.load_demo import default_monday, populate
 
 MONDAY = date(2026, 10, 19)
-NOW = datetime(2026, 10, 19, 8, 0)             # Monday morning, before the whole week
+NOW = datetime(2026, 10, 19, 8, 0)            
 
 
 @pytest.fixture
@@ -52,7 +47,7 @@ def test_monday_touching_events_do_not_conflict(ctl):
 def test_tuesday_nested_and_identical_events(ctl):
     events, conflicts = conflicts_between(ctl, at(1, "00:00"), at(2, "00:00"))
     assert len(events) == 4
-    assert minutes(conflicts) == [60, 60]           # nested: 60, identical: full 60
+    assert minutes(conflicts) == [60, 60]          
 
 
 def test_wednesday_night_shift_overlaps_the_late_call_after_midnight(ctl):
@@ -85,11 +80,11 @@ def test_saturday_fixed_class_against_movable_study_session(ctl):
     assert minutes(conflicts) == [30]
     by_title = {e.title: e for e in events}
 
-    with pytest.raises(ValidationError):                       # Fixed: no suggestions
+    with pytest.raises(ValidationError):                      
         ctl.alternatives(by_title["Chemistry Class"].id)
 
     alternatives = ctl.alternatives(by_title["Study Session"].id).slots
-    assert alternatives[0].start == to_minutes(at(5, "09:00"))   # morning, fits
+    assert alternatives[0].start == to_minutes(at(5, "09:00"))  
     class_start, class_end = to_minutes(at(5, "10:00")), to_minutes(at(5, "11:30"))
     assert all(not (s.start < class_end and class_start < s.end) for s in alternatives)
 
@@ -100,9 +95,9 @@ def test_the_whole_week_has_eight_conflicts(ctl):
 
 
 def test_default_week_is_this_monday_or_next_monday_at_the_weekend():
-    assert default_monday(date(2026, 10, 21)) == date(2026, 10, 19)    # Wednesday
-    assert default_monday(date(2026, 10, 19)) == date(2026, 10, 19)    # Monday
-    assert default_monday(date(2026, 10, 24)) == date(2026, 10, 26)    # Saturday
+    assert default_monday(date(2026, 10, 21)) == date(2026, 10, 19)  
+    assert default_monday(date(2026, 10, 19)) == date(2026, 10, 19)    
+    assert default_monday(date(2026, 10, 24)) == date(2026, 10, 26)    
 
 
 def test_random_calendars_repeat_exactly_for_the_same_seed():

@@ -9,13 +9,11 @@ from app.models.timeconv import from_minutes, to_minutes
 from app.store.event_store import EventStore
 from app.store.task_store import TaskStore
 
-NOW = datetime(2026, 10, 20, 10, 0)       # the frozen "now" for every test
-
+NOW = datetime(2026, 10, 20, 10, 0)      
 
 @pytest.fixture
 def ctl():
     return Controller(EventStore(), TaskStore(), clock=lambda: NOW)
-
 
 def ev(**changes):
     data = {"title": "Meeting", "category": "meeting",
@@ -23,15 +21,11 @@ def ev(**changes):
     data.update(changes)
     return data
 
-
 def task(**changes):
     data = {"name": "Write report", "category": "assignment",
             "duration_minutes": 60, "priority": "Medium"}
     data.update(changes)
     return data
-
-
-# ---------- create ----------
 
 def test_create_saves_in_both_structures(ctl):
     result = ctl.create_event(ev())
@@ -45,7 +39,7 @@ def test_t2_conflicting_event_is_saved_and_reported(ctl):
                                   start="2026-10-21T10:00", end="2026-10-21T11:30")).event
     result = ctl.create_event(ev(title="Group", priority="Medium",
                                  start="2026-10-21T11:00", end="2026-10-21T12:00"))
-    assert len(ctl.events) == 2                       # saved anyway (A1)
+    assert len(ctl.events) == 2                      
     assert len(result.conflicts) == 1
     c = result.conflicts[0]
     assert (c.event_a.id, c.event_b.id) == (lecture.id, result.event.id)
@@ -65,11 +59,8 @@ def test_rejected_create_changes_nothing(ctl):
         ctl.create_event(ev(start="2026-10-21T14:00", end="2026-10-21T13:00"))
     assert len(ctl.events) == 0
 
-
-# ---------- update (edit, move, resize) ----------
-
 def test_move_clears_old_conflict_and_finds_new_one(ctl):
-    a = ctl.create_event(ev()).event                                   # 10-11
+    a = ctl.create_event(ev()).event                                   
     b = ctl.create_event(ev(start="2026-10-21T12:00", end="2026-10-21T13:00")).event
 
     moved = ctl.update_event(b.id, ev(start="2026-10-21T10:30", end="2026-10-21T11:30"))
@@ -95,15 +86,12 @@ def test_rejected_update_keeps_the_original(ctl):
     assert ctl.events.get(a.id) == before
 
 
-def test_update_or_delete_missing_event(ctl):                          # ER7
+def test_update_or_delete_missing_event(ctl):                         
     with pytest.raises(NotFoundError) as info:
         ctl.update_event(99, ev())
     assert info.value.code == "ER7" and info.value.status == 404
     with pytest.raises(NotFoundError):
         ctl.delete_event(99)
-
-
-# ---------- delete and list ----------
 
 def test_delete_clears_the_conflict_for_the_other_event(ctl):
     ctl.create_event(ev())
@@ -127,25 +115,18 @@ def test_list_events_bad_range(ctl):
     with pytest.raises(ValidationError):
         ctl.list_events("2026-10-22T00:00", "2026-10-21T00:00")
 
-
-# ---------- alternatives ----------
-
 def test_alternatives_refuse_fixed_events(ctl):
     lecture = ctl.create_event(ev(category="class")).event
     with pytest.raises(ValidationError) as info:
         ctl.alternatives(lecture.id)
     assert info.value.message == "Fixed, cannot be moved by the planner"
 
-
 def test_alternatives_for_a_movable_event(ctl):
-    ctl.create_event(ev(title="Lecture", category="class"))             # 10-11 Fixed
+    ctl.create_event(ev(title="Lecture", category="class"))            
     study = ctl.create_event(ev(title="Study", category="assignment",
                                 start="2026-10-21T10:30", end="2026-10-21T11:30")).event
     result = ctl.alternatives(study.id)
     assert result.slots and all(s.end - s.start == 60 for s in result.slots)
-
-
-# ---------- tasks ----------
 
 def test_tasks_sorted_and_filtered_by_priority(ctl):
     ctl.create_task(task(name="low", priority="Low"))
@@ -168,9 +149,6 @@ def test_delete_missing_task(ctl):
     with pytest.raises(NotFoundError):
         ctl.delete_task(5)
 
-
-# ---------- suggestions ----------
-
 def test_suggestions_never_start_in_the_past(ctl):
     t = ctl.create_task(task())
     result = ctl.suggest(t.id)
@@ -191,9 +169,6 @@ def test_freed_time_appears_in_the_next_search(ctl):
     assert ctl.suggest(t.id).slots == ()
     ctl.delete_event(blocker.id)
     assert len(ctl.suggest(t.id).slots) == 1
-
-
-# ---------- accepting a slot ----------
 
 def test_accept_books_the_event_and_removes_the_task(ctl):
     t = ctl.create_task(task())
@@ -220,8 +195,8 @@ def test_t9_slot_taken_in_the_meantime(ctl):
         ctl.accept_slot(t.id, {"start": from_minutes(slot.start),
                                "end": from_minutes(slot.end)})
     assert info.value.status == 409
-    assert ctl.tasks.get(t.id) is not None            # task stays in the list
-    assert len(ctl.events) == events_before           # nothing was booked
+    assert ctl.tasks.get(t.id) is not None           
+    assert len(ctl.events) == events_before         
 
 
 def test_accept_slot_must_match_the_task_length(ctl):
@@ -235,9 +210,6 @@ def test_accept_slot_must_match_the_task_length(ctl):
 def test_accept_for_missing_task(ctl):
     with pytest.raises(NotFoundError):
         ctl.accept_slot(7, {"start": "2026-10-21T10:00", "end": "2026-10-21T11:00"})
-
-
-# ---------- preferences ----------
 
 def test_preferences_default_then_update(ctl):
     assert ctl.get_preferences() == Preferences()

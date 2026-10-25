@@ -1,10 +1,3 @@
-"""Assignment 3, section 3.1: after any sequence of inserts, edits and deletes,
-the sorted array must be in start-time order and hold exactly the same events
-as the hash map.
-
-The test keeps its own plain dictionary as the model and compares the store
-against it after every single step.
-"""
 import random
 from dataclasses import replace
 
@@ -23,7 +16,7 @@ def key(event):
 def test_sorted_array_and_hash_map_stay_in_step(seed):
     rng = random.Random(seed)
     store = EventStore()
-    model = {}                                   # id -> Event, the simple truth
+    model = {}                               
     pool = random_events(400, seed, span_days=10)
 
     for _ in range(300):
@@ -41,12 +34,11 @@ def test_sorted_array_and_hash_map_stay_in_step(seed):
             assert store.remove(event_id) == model.pop(event_id)
 
         assert len(store) == len(model)
-        assert store.all_sorted() == sorted(model.values(), key=key)     # order and content
-        assert all(store.get(i) == e for i, e in model.items())          # hash map agrees
+        assert store.all_sorted() == sorted(model.values(), key=key)    
+        assert all(store.get(i) == e for i, e in model.items())          
         ids_in_array = [e.id for e in store.sorted_events()]
-        assert sorted(ids_in_array) == sorted(model)                     # same ids, no repeats
+        assert sorted(ids_in_array) == sorted(model)                     
 
-    # and the window query agrees with a plain filter on the final calendar
     base = RANDOM_FIRST_DAY * MINUTES_PER_DAY
     for _ in range(20):
         start = base + 5 * rng.randrange(10 * 288)
@@ -55,14 +47,12 @@ def test_sorted_array_and_hash_map_stay_in_step(seed):
                           key=key)
         assert store.events_in_window(start, end) == expected
 
-
 def test_ids_are_never_reused_after_a_delete():
     store = EventStore()
     first = store.add(Event(None, "a", 0, 60, "meeting"))
     store.remove(first.id)
     second = store.add(Event(None, "b", 0, 60, "meeting"))
     assert (first.id, second.id) == (1, 2)
-
 
 def test_bulk_load_gives_the_same_store_as_adding_one_by_one():
     one_by_one = EventStore()
@@ -75,8 +65,7 @@ def test_bulk_load_gives_the_same_store_as_adding_one_by_one():
     assert bulk.all_sorted() == one_by_one.all_sorted()
     assert all(bulk.get(e.id) == e for e in one_by_one.all_sorted())
     new = Event(None, "next", 0, 60, "meeting")
-    assert bulk.add(new).id == one_by_one.add(new).id                    # ids carry on
-
+    assert bulk.add(new).id == one_by_one.add(new).id                 
 
 def test_bulk_load_rejects_events_that_are_not_in_start_order():
     store = EventStore()

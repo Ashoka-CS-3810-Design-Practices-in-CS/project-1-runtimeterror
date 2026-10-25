@@ -7,17 +7,14 @@ from app.models.records import Event, Preferences, Task
 from app.models.timeconv import to_minutes
 from app.store.event_store import EventStore
 
-DAY = 9000   # an arbitrary day number; day * 1440 = minute that day starts
-
+DAY = 9000   
 
 def t(hour, minute=0, day=0):
-    """Absolute minute for a clock time on DAY + day."""
     return (DAY + day) * 1440 + hour * 60 + minute
 
 
 def add(store, title, start, end, category="meeting", **kw):
     return store.add(Event(None, title, start, end, category, **kw))
-
 
 def search(store, duration=90, priority="High", category="assignment",
            prefs=None, last_day=DAY, daily_start=9 * 60, daily_end=18 * 60, **extra):
@@ -26,14 +23,10 @@ def search(store, duration=90, priority="High", category="assignment",
         prefs=prefs or Preferences(), first_day=DAY, last_day=last_day,
         daily_start=daily_start, daily_end=daily_end, **extra)
 
-
-# ---------- the shared search ----------
-
 def test_empty_calendar_gives_one_slot_per_day_in_order():
     result = search(EventStore(), duration=60, priority="Medium", last_day=DAY + 2)
     starts = [s.start for s in result.slots]
     assert starts == [t(9), t(9, day=1), t(9, day=2)]
-
 
 def test_worked_example_from_assignment_1():
     store = EventStore()
@@ -41,10 +34,10 @@ def test_worked_example_from_assignment_1():
     add(store, "B", t(12), t(13))
     add(store, "C", t(12, 30), t(13, 30))
     add(store, "D", t(16), t(17))
-    result = search(store)                      # 90 min, High, morning pref
+    result = search(store)                      
     assert [(s.start, s.end) for s in result.slots] == [
-        (t(9, 30), t(11)),                      # morning, earliest
-        (t(13, 30), t(15)),                     # fits, outside morning
+        (t(9, 30), t(11)),                 
+        (t(13, 30), t(15)),                    
     ]
     assert result.slots[0].matches_preferred is True
     assert result.slots[1].matches_preferred is False
@@ -58,10 +51,10 @@ def test_slots_carry_reasons_from_the_explainer():
     assert any("morning preference" in r for r in slot.reasons)
 
 
-def test_priority_rule_earliest_vs_best_fit():          # test T5
+def test_priority_rule_earliest_vs_best_fit():       
     store = EventStore()
     add(store, "busy", t(14, 30), t(16))
-    kw = dict(duration=45, category="appointment",      # afternoon preference
+    kw = dict(duration=45, category="appointment",    
               daily_start=12 * 60, daily_end=17 * 60)
     high = search(store, priority="High", **kw)
     medium = search(store, priority="Medium", **kw)
@@ -69,7 +62,7 @@ def test_priority_rule_earliest_vs_best_fit():          # test T5
     assert medium.slots[0].start == t(16)
 
 
-def test_cutoff_strict_and_flexible():                  # test T6
+def test_cutoff_strict_and_flexible():                 
     store = EventStore()
     add(store, "busy", t(18), t(21))
     kw = dict(duration=60, daily_start=18 * 60, daily_end=23 * 60)
@@ -86,7 +79,7 @@ def test_cutoff_strict_and_flexible():                  # test T6
 
 def test_event_from_the_previous_night_blocks_the_morning():
     store = EventStore()
-    add(store, "overnight", t(23, day=-1), t(10))       # crosses midnight
+    add(store, "overnight", t(23, day=-1), t(10))       
     result = search(store, duration=60)
     assert result.slots[0].start == t(10)
 
@@ -113,9 +106,6 @@ def test_slots_never_overlap_events():
     for slot in search(store, duration=30, priority="Low").slots:
         assert not store.events_in_window(slot.start, slot.end)
 
-
-# ---------- from a Task record ----------
-
 def test_task_with_no_window_uses_two_weeks_and_working_hours():
     task = Task(None, "Write", "assignment", 60, "Medium")
     result = find_slots_for_task(EventStore(), task, Preferences(), today_day=DAY)
@@ -132,27 +122,22 @@ def test_task_with_its_own_window():
     assert len(result.slots) == 1
     assert result.slots[0].start == day * 1440 + 14 * 60
 
-
-# ---------- conflict alternatives ----------
-
 def test_alternatives_for_a_movable_event():
     store = EventStore()
-    add(store, "Lecture", t(10), t(11, 30), "class")              # Fixed
-    study = add(store, "Study", t(11), t(12), "assignment")       # Movable
+    add(store, "Lecture", t(10), t(11, 30), "class")            
+    study = add(store, "Study", t(11), t(12), "assignment")       
     result = find_alternatives(store, study, Preferences())
-    assert result.slots[0].start == t(9)                          # morning, fits
+    assert result.slots[0].start == t(9)                          
     for slot in result.slots:
         assert slot.end - slot.start == 60
         assert slot.start >= t(9) and slot.end <= t(18)
-        assert not (slot.start < t(11, 30) and t(10) < slot.end)  # misses lecture
-
+        assert not (slot.start < t(11, 30) and t(10) < slot.end)
 
 def test_alternatives_treat_the_event_itself_as_free_time():
     store = EventStore()
     only = add(store, "Study", t(10), t(11), "assignment")
     result = find_alternatives(store, only, Preferences())
-    assert result.slots[0].gap_length == 9 * 60                   # whole working day
-
+    assert result.slots[0].gap_length == 9 * 60                  
 
 def test_alternatives_refuse_fixed_events():
     store = EventStore()
@@ -160,19 +145,17 @@ def test_alternatives_refuse_fixed_events():
     with pytest.raises(ValueError):
         find_alternatives(store, lecture, Preferences())
 
-
 def test_alternatives_when_nothing_fits():
     store = EventStore()
     add(store, "Lunch", t(12), t(13), "class")
-    long_one = add(store, "Marathon", t(9), t(18), "assignment")  # 9 hours
+    long_one = add(store, "Marathon", t(9), t(18), "assignment") 
     result = find_alternatives(store, long_one, Preferences())
     assert result.slots == ()
     assert "No free 540-minute slot" in result.no_slot_reason
 
-
 def test_flexible_finder_offers_a_slot_that_runs_past_the_cutoff():
     store = EventStore()
-    add(store, "busy", t(9), t(20))                 # free 8 PM to 10 PM only
+    add(store, "busy", t(9), t(20))               
     result = search(store, duration=90, daily_start=9 * 60, daily_end=22 * 60)
     assert [(s.start, s.end) for s in result.slots] == [(t(20), t(21, 30))]
     assert result.slots[0].before_cutoff is False

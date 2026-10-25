@@ -1,5 +1,4 @@
-#The Controller: the single coordination point between the layers.
-
+#The controller where every action comes is validated then concerned people told what to do
 
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -22,7 +21,6 @@ MINUTES_PER_DAY = 24 * 60
 
 @dataclass(frozen=True)
 class Conflict:
-    """One overlapping pair. event_a starts at or before event_b."""
     event_a: Event
     event_b: Event
     overlap_start: int
@@ -53,12 +51,7 @@ class Controller:
         self.prefs = prefs or Preferences()
         self._clock = clock
 
-    # ------------------------------------------------------------------
-    # Events
-    # ------------------------------------------------------------------
-
     def list_events(self, start_text, end_text):
-        """Events in the visible range, and the conflicts among them."""
         start = parse_time(start_text, "start")
         end = parse_time(end_text, "end")
         if end <= start:
@@ -76,7 +69,6 @@ class Controller:
         return EventResult(stored, self._conflicts_for(stored))
 
     def update_event(self, event_id, data):
-        """Edit, move or resize: the same path, a full replacement."""
         self._event_or_404(event_id)
         event = replace(validate_event(data, self._today()), id=event_id)
         self.events.update(event)
@@ -99,10 +91,6 @@ class Controller:
                                   "This event is Fixed, so the planner will not "
                                   "suggest a new time for it.")
         return find_alternatives(self.events, event, self.prefs)
-
-    # ------------------------------------------------------------------
-    # Tasks
-    # ------------------------------------------------------------------
 
     def create_task(self, data):
         task = validate_task(data, self.prefs, self._today())
@@ -127,17 +115,14 @@ class Controller:
         return task_id
 
     def suggest(self, task_id):
-        """The best-time finder for one saved task."""
         task = self._task_or_404(task_id)
         now = self._now_minutes()
         return find_slots_for_task(self.events, task, self.prefs,
                                    today_day=now // MINUTES_PER_DAY, not_before=now)
 
     def accept_slot(self, task_id, data):
-        """Book a suggested slot. Re-checks that it is still free (test T9)."""
         task = self._task_or_404(task_id)
 
-        # The new event goes through the same validation as any event.
         event = validate_event({
             "title": task.name, "category": task.category,
             "start": data.get("start"), "end": data.get("end"),
@@ -147,7 +132,6 @@ class Controller:
             raise ValidationError("ER2", "end", "Wrong slot length",
                                   f"The slot must be exactly {task.duration} minutes long.")
 
-        # T9: the calendar may have changed since the slots were shown.
         if find_conflicts_for_event(self.events.sorted_events(), event.start, event.end):
             raise SlotTakenError("SLOT_TAKEN", None, "That slot is no longer free",
                                  "Something was added to the calendar after these "
@@ -156,28 +140,20 @@ class Controller:
         stored = self.events.add(event)
         self.tasks.remove(task_id)
         if self.storage:
-            self.storage.save_booking(stored, task_id)   # one transaction
+            self.storage.save_booking(stored, task_id)   
         return Booking(stored, [], task_id)
 
-    # ------------------------------------------------------------------
-    # Preferences
-    # ------------------------------------------------------------------
 
     def get_preferences(self):
         return self.prefs
 
     def set_preferences(self, data):
-        self.prefs = validate_preferences(data)         # raises before anything changes
+        self.prefs = validate_preferences(data)      
         if self.storage:
             self.storage.save_preferences(self.prefs)
         return self.prefs
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
     def _conflicts_for(self, event):
-        """Every pair that includes this event (Algorithm 3, incremental)."""
         others = find_conflicts_for_event(
             self.events.sorted_events(), event.start, event.end, exclude_id=event.id)
         result = []
@@ -208,15 +184,14 @@ class Controller:
         return to_minutes(self._clock().strftime(FORMAT))
 
     def __init__(self, events, tasks, prefs=None, clock=datetime.now, storage=None):
-        self.events = events                    # EventStore
-        self.tasks = tasks                      # TaskStore
+        self.events = events                   
+        self.tasks = tasks                     
         self.prefs = prefs or Preferences()
         self._clock = clock
-        self.storage = storage                  # SQLiteStorage, or None (memory only)
+        self.storage = storage                 
 
     def attach_storage(self, storage):
-        """Load everything saved so far, then save every change from now on."""
-        self.events.load_sorted(storage.load_events())     # already in start order
+        self.events.load_sorted(storage.load_events())     
         self.tasks.load(storage.load_tasks())
         saved = storage.load_preferences()
         if saved is not None:

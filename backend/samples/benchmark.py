@@ -1,10 +1,4 @@
-"""Timing of the main operations (Assignment 3, section 3.7).
 
-Run from backend/:   python -m samples.benchmark
-Prints a table and writes perf_results.md for the documentation.
-The same numbers are checked against the Assignment 1 targets by
-tests/test_performance.py.
-"""
 import os
 import random
 import statistics
@@ -24,10 +18,10 @@ from samples.calendars import MINUTES_PER_DAY, random_events, sorted_by_start
 
 TARGETS_MS = {"conflict_check": 500, "finder_2_weeks": 2000, "load_calendar": 3000}
 
-NOW = datetime(2026, 10, 20, 10, 0)             # the frozen "today" for every run
+NOW = datetime(2026, 10, 20, 10, 0)             
 TODAY_DAY = to_minutes("2026-10-20T00:00") // MINUTES_PER_DAY
-FIRST_DAY = TODAY_DAY - 90                      # events spread from 90 days ago ...
-SPAN_DAYS = 365                                 # ... for a year
+FIRST_DAY = TODAY_DAY - 90                      
+SPAN_DAYS = 365                             
 
 
 def median_ms(function, repeats):
@@ -46,7 +40,7 @@ def fresh_controller(db_path):
 
 
 def measure(n, db_path, seed=7):
-    """Median time in milliseconds for each main operation on a calendar of n events."""
+
     events = sorted_by_start(random_events(n, seed, span_days=SPAN_DAYS, first_day=FIRST_DAY))
 
     # Save once (setup), then time the startup load several times.

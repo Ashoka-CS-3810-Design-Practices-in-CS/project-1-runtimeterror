@@ -1,6 +1,4 @@
 #Errors the Controller raises
-
-
 class PlannerError(Exception):
     status = 400
 
@@ -15,14 +13,11 @@ class PlannerError(Exception):
         return {"error": {"code": self.code, "field": self.field,
                           "message": self.message, "detail": self.detail}}
 
-
-class ValidationError(PlannerError):    # ER1-ER6, ER8: nothing was changed
+class ValidationError(PlannerError):    
     status = 422
 
-
-class NotFoundError(PlannerError):      # ER7: event or task no longer exists
+class NotFoundError(PlannerError):      
     status = 404
 
-
-class SlotTakenError(PlannerError):     # test T9: slot no longer free
+class SlotTakenError(PlannerError):    
     status = 409

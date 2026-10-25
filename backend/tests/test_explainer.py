@@ -6,8 +6,8 @@ CUTOFF = 21 * 60
 
 def make_slot(**overrides):
     slot = {
-        "start": 570, "end": 660,            # 9:30 - 11:00
-        "gap_start": 570, "gap_end": 720,    # 9:30 - 12:00
+        "start": 570, "end": 660,         
+        "gap_start": 570, "gap_end": 720,   
         "gap_length": 150, "leftover": 60,
         "before_cutoff": True, "matches_preferred": True,
         "priority_rule": "earliest_start", "priority_key": 570,
@@ -15,10 +15,8 @@ def make_slot(**overrides):
     slot.update(overrides)
     return slot
 
-
 def explain(slot, priority="High", category="assignment", preferred="morning"):
     return explain_slot(slot, 90, priority, category, preferred, CUTOFF)
-
 
 def test_format_duration():
     assert format_duration(150) == "2 hours 30 minutes"
@@ -70,7 +68,6 @@ def test_best_fit_sentences():
 
 
 def test_explanations_agree_with_real_ranking():
-    # Real Algorithm 2 output: one gap before the cutoff, one after it.
     gaps = [(9 * 60, 12 * 60), (13 * 60, 16 * 60), (21 * 60, 23 * 60)]
     ranked = rank_slots(gaps, 90, "Medium", "morning", CUTOFF, "Flexible")
     assert len(ranked) == 3

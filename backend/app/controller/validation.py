@@ -13,11 +13,6 @@ MINUTES_PER_DAY = 24 * 60
 TIME_FORMAT_HINT = "Use the format YYYY-MM-DDTHH:MM, for example 2026-10-13T10:00."
 RANGE_DETAIL = "Dates must be within 6 months before and 1 year after today."
 
-
-
-# Events (ER1, ER2, ER3, ER4)
-
-
 def validate_event(data, today):
     title = data.get("title")
     if not isinstance(title, str) or not title.strip():
@@ -59,10 +54,6 @@ def validate_event(data, today):
                  priority=priority, movable=movable)
 
 
-# ----------------------------------------------------------------------
-# Tasks (ER3, ER4, ER5)
-# ----------------------------------------------------------------------
-
 def validate_task(data, prefs, today):
     name = data.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -75,7 +66,7 @@ def validate_task(data, prefs, today):
                               f"Category must be one of: {', '.join(CATEGORIES)}.")
 
     priority = data.get("priority")
-    if priority not in PRIORITIES:            # tasks always need one (A7)
+    if priority not in PRIORITIES:          
         raise ValidationError("ER4", "priority", "Priority is required",
                               "Choose High, Medium or Low.")
 
@@ -94,7 +85,6 @@ def validate_task(data, prefs, today):
     daily_start = _parse_clock(data.get("daily_start"), "daily_start", "ER5")
     daily_end = _parse_clock(data.get("daily_end"), "daily_end", "ER5")
 
-    # The window the finder will really use: given values, else working hours (A8).
     window_start = daily_start if daily_start is not None else prefs.working_start
     window_end = daily_end if daily_end is not None else prefs.working_end
     if window_end <= window_start:
@@ -107,15 +97,10 @@ def validate_task(data, prefs, today):
             f"Your window is {window_length} minutes, but the task needs "
             f"{duration}. Shorten the task or widen the window.")
 
-    # Missing window parts stay None, so they follow the preferences later.
+
     return Task(id=None, name=name.strip(), category=category, duration=duration,
                 priority=priority, from_date=from_date, to_date=to_date,
                 daily_start=daily_start, daily_end=daily_end)
-
-
-# ----------------------------------------------------------------------
-# Preferences (ER8)
-# ----------------------------------------------------------------------
 
 def validate_preferences(data):
     defaults = Preferences()
@@ -160,11 +145,6 @@ def validate_preferences(data):
 def _er8(field, message, detail):
     return ValidationError("ER8", field, message, detail)
 
-
-# ----------------------------------------------------------------------
-# Date range (A2): 6 months before today to 1 year after
-# ----------------------------------------------------------------------
-
 def supported_date_range(today):
     return _shift_months(today, -6), _shift_months(today, 12)
 
@@ -183,10 +163,6 @@ def _check_in_range(minutes, field, today):
         raise ValidationError("ER3", field, "Date out of range", RANGE_DETAIL)
 
 
-# ----------------------------------------------------------------------
-# Small parsers
-# ----------------------------------------------------------------------
-
 def parse_time(value, field):
     try:
         return to_minutes(value)
@@ -196,7 +172,6 @@ def parse_time(value, field):
 
 
 def _parse_date(value, field, today):
-    """Return the date as 'YYYY-MM-DD', or None if it was not given."""
     if value is None:
         return None
     try:
@@ -213,7 +188,6 @@ def _day_number(date_text):
 
 
 def _parse_clock(value, field, code, required=False):
-    """HH:MM -> minutes of the day. None stays None unless required."""
     if value is None and not required:
         return None
     try:

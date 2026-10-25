@@ -1,14 +1,7 @@
-"""Translation between the API's JSON and the backend's records.
 
-
-No rules here Rules are in the Controller.
-"""
 import re
 
 from app.models.timeconv import from_minutes
-
-
-# ---------- names ----------
 
 def snake(key):
     return re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
@@ -19,15 +12,11 @@ def camel(key):
 
 
 def snake_keys(data):
-    """Only the top-level keys are renamed. Nested names are already lowercase."""
     return {snake(key): value for key, value in data.items()}
 
 
 def clock_out(minute_of_day):
     return None if minute_of_day is None else f"{minute_of_day // 60:02d}:{minute_of_day % 60:02d}"
-
-
-# ---------- records -> JSON ----------
 
 def event_out(e):
     return {"id": e.id, "title": e.title, "description": e.description,
@@ -61,7 +50,6 @@ def slot_out(s):
             "priorityRule": PRIORITY_RULE_NAMES[s.priority_rule],
             "leftoverMinutes": s.leftover, "reasons": list(s.reasons)}
 
-
 def search_out(result):
     body = {"slots": [slot_out(s) for s in result.slots],
             "noSlotReason": result.no_slot_reason}
@@ -69,16 +57,14 @@ def search_out(result):
         body["tryInstead"] = list(result.try_instead)
     return body
 
-
 def prefs_out(p):
     return {"preferredTime": dict(p.preferred_time), "cutoff": clock_out(p.cutoff),
             "cutoffMode": p.cutoff_mode,
             "workingHours": {"start": clock_out(p.working_start),
                              "end": clock_out(p.working_end)}}
 
-
 def error_out(exc):
     body = exc.to_dict()
     field = body["error"]["field"]
-    body["error"]["field"] = camel(field) if field else None   # the form uses camelCase
+    body["error"]["field"] = camel(field) if field else None  
     return body

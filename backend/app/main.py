@@ -1,15 +1,6 @@
-"""Entry point of the backend server.
 
-Routes will be added in Step 5. For now there is only a health check,
-which proves the server starts and React will be able to reach it.
-"""
 from fastapi import FastAPI
 
-"""Entry point of the backend server.
-
-Run from backend/:   uvicorn app.main:app --reload
-Docs page:           http://localhost:8000/docs
-"""
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -28,13 +19,13 @@ from app.store.task_store import TaskStore
 
 
 def create_app(db_path=None, clock=datetime.now):
-    """db_path=None keeps everything in memory (nothing is saved)."""
+
     controller = Controller(EventStore(), TaskStore(), clock=clock)
 
     @asynccontextmanager
     async def lifespan(app):
         storage = None
-        if db_path:                                  # opened at startup, not at import
+        if db_path:                                
             storage = SQLiteStorage(db_path)
             controller.attach_storage(storage)
         yield
@@ -44,7 +35,7 @@ def create_app(db_path=None, clock=datetime.now):
     app = FastAPI(title="Interactive Calendar and Intelligent Time Planner",
                   lifespan=lifespan)
 
-    # The React dev server (Vite) runs on another port, so the browser needs this.
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

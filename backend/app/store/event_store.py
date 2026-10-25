@@ -1,4 +1,4 @@
-#the event stores hash map and sorted array together
+#the event stores in 2 ways so find by id and find by time are fast
 
 from bisect import bisect_left, insort
 from dataclasses import replace
@@ -8,7 +8,7 @@ from app.models.records import Event, MAX_DURATION
 
 def _key(event: Event) -> tuple[int, int]:
     return (event.start, event.id)
-
+#events sorted by start time and if two start together then by id
 
 class EventStore:
     def __init__(self):
@@ -23,12 +23,13 @@ class EventStore:
         return list(self._sorted)
 
     def sorted_events(self) -> list[Event]:
-        """The live sorted list, not a copy. Read-only: never change it."""
+        #The live sorted list, not a copy so to be Read-only never changed
         return self._sorted
 
     def __len__(self) -> int:
         return len(self._by_id)
 
+    #to get every event in a time window
     def events_in_window(self, window_start: int, window_end: int) -> list[Event]:
         earliest_possible_start = window_start - MAX_DURATION
         i = bisect_left(self._sorted, (earliest_possible_start,), key=_key)
