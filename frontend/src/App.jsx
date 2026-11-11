@@ -12,6 +12,7 @@ import TaskPanel from "./components/TaskPanel";
 import MiniCalendar from "./components/MiniCalendar";
 import PreferencesForm from "./components/PreferencesForm";
 import "./App.css";
+import { PRIORITY_FILTERS, matchesFilter } from "./priorityFilter";
  
 function toContractTime(date) {
   const pad = (n) => String(n).padStart(2, "0");
@@ -88,7 +89,8 @@ export default function App() {
   const [conflictIndex, setConflictIndex] = useState(0);    
   const calendarRef = useRef(null);   
   const [prefsForm, setPrefsForm] = useState(null); 
-  const [toast, setToast] = useState(null);         
+  const [toast, setToast] = useState(null);    
+  const [priorityFilter, setPriorityFilter] = useState("All");     
  
   useEffect(() => {
     api.getEvents()
@@ -132,8 +134,9 @@ export default function App() {
     return map;
   }, [events]);
  
-  const calendarEvents = events.map((e) => toCalendarEvent(e, conflictingIds, pendingIds));
- 
+  const shownEvents = events.filter((e) => matchesFilter(e.priority, priorityFilter));
+  const calendarEvents = shownEvents.map((e) => toCalendarEvent(e, conflictingIds, pendingIds));
+  
   function applySavedEvent(saved, newConflicts) {
     setEvents((old) => {
       const others = old.filter((e) => e.id !== saved.id);
@@ -328,8 +331,25 @@ export default function App() {
           <MiniCalendar onPick={(day) => calendarRef.current?.getApi().gotoDate(day)} />
         </section>
         <section className="panel">
+          <h2>Filter by priority</h2>
+          <select
+            className="priority-filter"
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            aria-label="Filter by priority"
+          >
+            {PRIORITY_FILTERS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {priorityFilter !== "All" && (
+            <p className="panel-note">
+              Showing {shownEvents.length} of {events.length} events.
+            </p>
+          )}
+        </section>
+        <section className="panel">
           <h2>Schedule a Task</h2>
-          <TaskPanel onEventCreated={applySavedEvent} onError={showError} />
+          <TaskPanel onEventCreated={applySavedEvent} onError={showError}
+            priorityFilter={priorityFilter} />
         </section>
         <section className="panel">
           <h2>Conflict Alert</h2>

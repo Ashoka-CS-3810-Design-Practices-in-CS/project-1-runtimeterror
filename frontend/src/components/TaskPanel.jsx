@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import { matchesFilter } from "../priorityFilter";
 
 const CATEGORIES = [
   ["assignment", "Assignment"],
@@ -22,7 +23,7 @@ const EMPTY_FORM = {
   name: "", durationMinutes: 60, toDate: "", priority: "Medium", category: "assignment",
 };
 
-export default function TaskPanel({ onEventCreated, onError }) {
+export default function TaskPanel({ onEventCreated, onError, priorityFilter }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errorField, setErrorField] = useState(null);
   const [tasks, setTasks] = useState([]);          
@@ -99,6 +100,7 @@ export default function TaskPanel({ onEventCreated, onError }) {
   }
 
   const fieldClass = (name) => (errorField === name ? "has-error" : "");
+  const shownTasks = tasks.filter((t) => matchesFilter(t.priority, priorityFilter));
 
   return (
     <div className="task-panel">
@@ -190,10 +192,10 @@ export default function TaskPanel({ onEventCreated, onError }) {
         </div>
       )}
 
-      {tasks.length > 0 && (
+      {shownTasks.length > 0 && (
         <div className="task-list">
           <div className="panel-note">Unscheduled tasks</div>
-          {tasks.map((t) => (
+          {shownTasks.map((t) => (
             <div key={t.id} className="task-row">
               <span>
                 <strong>{t.name}</strong> · {t.durationMinutes} min · {t.priority}
